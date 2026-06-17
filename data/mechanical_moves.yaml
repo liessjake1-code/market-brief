@@ -1,0 +1,105 @@
+# =============================================================================
+# mechanical_moves.yaml
+# =============================================================================
+# Recurring mechanical-move calendar for the Top Story rules engine
+# (spec Section 5 "Mechanical-move guard" + Section 7.7; roadmap Phase 4.2/4.8;
+# execution guide Phase 4 data entry).
+#
+# WHAT THIS DOES: On a date listed here, a large move in an affected metric is
+# a calendar artifact (expiration flows, index rebalance turnover), not a news
+# event. The engine still REPORTS the move but ANNOTATES it as mechanical and
+# SUPPRESSES promotion to Top Story, so the explanation engine never hunts for
+# a cause that does not exist ("Russell moved on reconstitution, not on news").
+#
+# "affected" lists the sections/metrics whose moves should be discounted on
+# that date. Other metrics on the same day are treated normally.
+#
+# -----------------------------------------------------------------------------
+# SOURCES (verified 2026-06-17)
+# -----------------------------------------------------------------------------
+#   Triple/quad witching : third Friday of Mar/Jun/Sep/Dec (OCC/Cboe options
+#       expiration). Cross-checked: en.wikipedia.org/wiki/Triple_witching_hour
+#       and multiple 2026 options-calendar sources.
+#   Russell reconstitution : FTSE Russell / LSEG official schedule —
+#       lseg.com/en/ftse-russell/russell-reconstitution and the 2026 schedule
+#       press release.
+#   S&P 500 quarterly rebalance : S&P Dow Jones Indices; effective after the
+#       close of the third Friday of the quarter-ending month (coincides with
+#       witching).
+#
+# -----------------------------------------------------------------------------
+# VERIFICATION NOTES
+# -----------------------------------------------------------------------------
+#  1. JUNETEENTH SHIFT (important): June 19, 2026 is a Friday and a US market
+#     holiday (Juneteenth), so the markets are CLOSED on the nominal third
+#     Friday. June quarterly expiration therefore moves to THURSDAY 2026-06-18.
+#     Careful sources (Wikipedia, exchange calendars) and FTSE Russell itself
+#     (which moved its June recon list update to the 18th "due to the Juneteenth
+#     holiday") reflect this. Some generic calendars still print June 19 by
+#     mechanically applying "third Friday" — they are wrong for 2026.
+#  2. Russell moved to a SEMI-ANNUAL schedule starting 2026: the long-standing
+#     June reconstitution PLUS a newly added December reconstitution. The
+#     December effective date was finalized on 2025-11-05 as the SECOND Friday
+#     of December (2026-12-11); earlier 2025 announcements had said November,
+#     so ignore any stale "November recon" reference.
+#  3. S&P INDEX ADD/DROP effective dates are ANNOUNCED AD HOC (usually ~1 week
+#     ahead, driven by M&A/eligibility) and cannot be pre-listed for the year.
+#     The quarterly rebalance dates below cover the scheduled distortion; the
+#     news matcher + low match-score honesty handle one-off add/drops.
+#  4. REFRESH QUARTERLY alongside tier_one_calendar.yaml.
+# =============================================================================
+
+meta:
+  year: 2026
+  refresh: "Re-verify quarterly against the sources in the header."
+  last_verified: "2026-06-17"
+
+# -----------------------------------------------------------------------------
+# Triple / quadruple witching (quarterly options & index-futures expiration)
+# Distorts: equity indices (expiration/roll flows) and the VIX complex.
+# -----------------------------------------------------------------------------
+witching:
+  - date: 2026-03-20   # third Friday, March
+    affected: [us_equities, volatility_breadth]
+    note: "Quarterly options/futures expiration; elevated volume and pinning."
+  - date: 2026-06-18   # THURSDAY — shifted from nominal third Friday (Jun 19) due to Juneteenth market holiday
+    affected: [us_equities, volatility_breadth]
+    note: "June quarterly expiration moved to Thu Jun 18; markets closed Fri Jun 19 (Juneteenth)."
+  - date: 2026-09-18   # third Friday, September
+    affected: [us_equities, volatility_breadth]
+    note: "Quarterly options/futures expiration; elevated volume and pinning."
+  - date: 2026-12-18   # third Friday, December
+    affected: [us_equities, volatility_breadth]
+    note: "Quarterly options/futures expiration; elevated volume and pinning."
+
+# -----------------------------------------------------------------------------
+# Russell US Indexes reconstitution (semi-annual from 2026)
+# Effective AFTER the close on the listed date; the close itself is one of the
+# highest-volume sessions of the year. Distorts small-caps most (Russell 2000).
+# -----------------------------------------------------------------------------
+russell_reconstitution:
+  - date: 2026-06-26   # fourth Friday in June; effective for trading Mon 2026-06-29
+    affected: [us_equities]
+    note: "June recon; record-volume close. Small-cap (Russell 2000) moves are rebalance turnover, not news."
+  - date: 2026-12-11   # second Friday in December; new semi-annual recon (rank day = last business day of Oct)
+    affected: [us_equities]
+    note: "First-ever December semi-annual recon; size-index membership changes effective after close."
+
+# -----------------------------------------------------------------------------
+# S&P 500 quarterly rebalance (share/float weight update)
+# Effective after the close of the third Friday of the quarter-ending month;
+# coincides with witching. Distorts S&P 500 weighting flows.
+# -----------------------------------------------------------------------------
+sp500_quarterly_rebalance:
+  - date: 2026-03-20
+    affected: [us_equities]
+    note: "Quarterly float/share rebalance effective after close."
+  - date: 2026-06-18   # VERIFY: confirm S&P's exact June effective date given the Jun 19 Juneteenth holiday; assumed shifted to Thu Jun 18 with witching.
+    affected: [us_equities]
+    note: "Quarterly rebalance; June timing assumed shifted to Thu Jun 18 with the holiday. VERIFY against S&P DJI."
+  - date: 2026-09-18
+    affected: [us_equities]
+    note: "Quarterly float/share rebalance effective after close."
+  - date: 2026-12-18
+    affected: [us_equities]
+    note: "Quarterly float/share rebalance effective after close."

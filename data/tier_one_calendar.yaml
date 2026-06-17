@@ -1,0 +1,158 @@
+# =============================================================================
+# tier_one_calendar.yaml
+# =============================================================================
+# Tier-one event calendar for the Daily Market Brief Top Story rules engine
+# (spec Section 5, step 1; roadmap Phase 4.1; execution guide Phase 4 data entry).
+#
+# On a date listed here, the engine PROMOTES the named section to the Top Story
+# slot, ahead of any z-score large-move check:
+#   - FOMC decision days        -> promotes "washington"
+#   - CPI / NFP / PCE / GDP days -> promotes "economic_data_scorecard"
+#
+# The DECISION/RELEASE date is what matters, not the embargo or the meeting's
+# first day. FOMC entries use the second (decision) day of the two-day meeting.
+# All times are the official release time in US Eastern; the engine matches on
+# date only.
+#
+# -----------------------------------------------------------------------------
+# SOURCES (verified 2026-06-17 against the official publishing agencies)
+# -----------------------------------------------------------------------------
+#   FOMC : https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
+#   CPI  : https://www.bls.gov/schedule/news_release/cpi.htm
+#   NFP  : https://www.bls.gov/schedule/news_release/empsit.htm   (Employment Situation)
+#   PCE  : https://www.bea.gov/news/schedule                       (Personal Income & Outlays)
+#   GDP  : https://www.bea.gov/news/schedule
+#
+# -----------------------------------------------------------------------------
+# VERIFICATION NOTES (read before trusting any single date)
+# -----------------------------------------------------------------------------
+#  1. NFP (Jan-2026 data): the official BLS Employment Situation schedule shows
+#     2026-02-11 (a Wednesday). Earlier/internal research had listed 2026-02-06.
+#     The official page wins and is used here, but it is an unusual non-Friday
+#     release, so it is double-checked and flagged below.
+#  2. PCE & GDP: BEA's 2026 calendar was repeatedly rescheduled after the
+#     Oct-Nov 2025 government shutdown. Dates from 2026-06-24 onward are taken
+#     directly from BEA's live forward schedule (page last modified 2026-06-17)
+#     and are solid. A few already-passed H1-2026 PCE/GDP dates that could not
+#     be pinned to a clean official page are marked "# VERIFY".
+#  3. Each date on a published agency calendar is tentative until shortly before
+#     release. REFRESH THIS FILE QUARTERLY against the URLs above (spec Section
+#     7, "Refresh quarterly"; roadmap Longevity pass).
+# =============================================================================
+
+meta:
+  year: 2026
+  refresh: "Re-verify quarterly against the agency URLs in the header."
+  last_verified: "2026-06-17"
+  promotes_map:
+    fomc: washington
+    cpi: economic_data_scorecard
+    nfp: economic_data_scorecard
+    pce: economic_data_scorecard
+    gdp: economic_data_scorecard
+
+# -----------------------------------------------------------------------------
+# FOMC — Federal Open Market Committee rate decisions (decision = 2nd meeting day)
+# Source: federalreserve.gov FOMC calendar. Statement 2:00 p.m. ET.
+# "sep: true" marks meetings that also publish a Summary of Economic Projections
+# (the dot plot): March, June, September, December.
+# -----------------------------------------------------------------------------
+fomc:
+  - date: 2026-01-28   # Jan 27-28 meeting
+    sep: false
+  - date: 2026-03-18   # Mar 17-18 meeting
+    sep: true
+  - date: 2026-04-29   # Apr 28-29 meeting
+    sep: false
+  - date: 2026-06-17   # Jun 16-17 meeting
+    sep: true
+  - date: 2026-07-29   # Jul 28-29 meeting
+    sep: false
+  - date: 2026-09-16   # Sep 15-16 meeting
+    sep: true
+  - date: 2026-10-28   # Oct 27-28 meeting
+    sep: false
+  - date: 2026-12-09   # Dec 8-9 meeting
+    sep: true
+
+# -----------------------------------------------------------------------------
+# CPI — Consumer Price Index. Source: BLS CPI schedule. 8:30 a.m. ET.
+# "ref" is the reference month the release covers.
+# Full year confirmed against the official BLS page; matches prior research.
+# -----------------------------------------------------------------------------
+cpi:
+  - date: 2026-01-13   # ref: Dec 2025
+  - date: 2026-02-13   # ref: Jan 2026
+  - date: 2026-03-11   # ref: Feb 2026
+  - date: 2026-04-10   # ref: Mar 2026
+  - date: 2026-05-12   # ref: Apr 2026
+  - date: 2026-06-10   # ref: May 2026
+  - date: 2026-07-14   # ref: Jun 2026
+  - date: 2026-08-12   # ref: Jul 2026
+  - date: 2026-09-11   # ref: Aug 2026
+  - date: 2026-10-14   # ref: Sep 2026
+  - date: 2026-11-10   # ref: Oct 2026
+  - date: 2026-12-10   # ref: Nov 2026
+
+# -----------------------------------------------------------------------------
+# NFP — Employment Situation (nonfarm payrolls + unemployment). 8:30 a.m. ET.
+# Source: BLS Employment Situation schedule.
+# -----------------------------------------------------------------------------
+nfp:
+  - date: 2026-01-09   # ref: Dec 2025
+  - date: 2026-02-11   # ref: Jan 2026  # NOTE: official BLS = Wed Feb 11 (not Feb 6 as in prior research). VERIFY if it matters.
+  - date: 2026-03-06   # ref: Feb 2026
+  - date: 2026-04-03   # ref: Mar 2026
+  - date: 2026-05-08   # ref: Apr 2026
+  - date: 2026-06-05   # ref: May 2026
+  - date: 2026-07-02   # ref: Jun 2026
+  - date: 2026-08-07   # ref: Jul 2026
+  - date: 2026-09-04   # ref: Aug 2026
+  - date: 2026-10-02   # ref: Sep 2026
+  - date: 2026-11-06   # ref: Oct 2026
+  - date: 2026-12-04   # ref: Nov 2026
+
+# -----------------------------------------------------------------------------
+# PCE — Personal Income & Outlays (carries the PCE price index, the Fed's
+# preferred inflation gauge). Source: BEA schedule. 8:30 a.m. ET.
+# H1-2026 dates were shutdown-rescheduled; 06-25 onward are from BEA's live
+# forward schedule and are solid.
+# -----------------------------------------------------------------------------
+pce:
+  # --- VERIFY: BEA does not publish a clean "PCE for Dec 2025" forward entry;
+  #     Nov/Dec 2025 income & outlays were consolidated into shutdown-recovery
+  #     releases. Confirm against bea.gov/news/schedule if an early-2026 trigger
+  #     is ever needed. ---
+  - date: 2026-03-13   # ref: Jan 2026  (rescheduled from the original Feb 26)
+  - date: 2026-04-09   # ref: Feb 2026  (rescheduled)
+  - date: 2026-04-30   # ref: Mar 2026
+  - date: 2026-05-28   # ref: Apr 2026
+  - date: 2026-06-25   # ref: May 2026
+  - date: 2026-07-30   # ref: Jun 2026
+  - date: 2026-08-26   # ref: Jul 2026
+  - date: 2026-09-30   # ref: Aug 2026
+  - date: 2026-10-29   # ref: Sep 2026
+  - date: 2026-11-25   # ref: Oct 2026
+  - date: 2026-12-23   # ref: Nov 2026
+
+# -----------------------------------------------------------------------------
+# GDP — Gross Domestic Product. Source: BEA schedule. 8:30 a.m. ET.
+# The ADVANCE estimate is the high-impact, market-moving read on a new quarter;
+# Second and Third estimates are revisions and move markets far less. "impact"
+# is a hint for the engine/editor, not a hard gate (spec lists "GDP" broadly).
+# 06-25 onward are from BEA's live forward schedule.
+# -----------------------------------------------------------------------------
+gdp:
+  - date: 2026-03-13   # Q4 2025, Second Estimate   impact: revision
+  - date: 2026-04-09   # Q4 2025, Third Estimate     impact: revision
+  # --- VERIFY: Q1-2026 Advance and Second estimate dates fell in the
+  #     shutdown-recovery window and are not on BEA's current forward schedule
+  #     (both already passed). If an audit of H1 triggers is needed, confirm
+  #     against bea.gov/news/schedule/full. ---
+  - date: 2026-06-25   # Q1 2026, Third Estimate      impact: revision
+  - date: 2026-07-30   # Q2 2026, Advance Estimate    impact: high
+  - date: 2026-08-26   # Q2 2026, Second Estimate     impact: revision
+  - date: 2026-09-30   # Q2 2026, Third Estimate      impact: revision
+  - date: 2026-10-29   # Q3 2026, Advance Estimate    impact: high
+  - date: 2026-11-25   # Q3 2026, Second Estimate     impact: revision
+  - date: 2026-12-23   # Q3 2026, Third Estimate      impact: revision

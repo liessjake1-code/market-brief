@@ -1,0 +1,66 @@
+# =============================================================================
+# .gitignore  —  Daily Market Brief
+# =============================================================================
+# IMPORTANT: some files in this project are tracked ON PURPOSE and must NOT be
+# added here:
+#   - last_run.json   : the state cache is committed back to the repo each run
+#                       (spec 5.5 / 8.3). It is the anti-auto-disable mechanism.
+#   - runs/           : per-run structured JSON dumps are committed for auditing
+#                       (spec 5.6 / 8). Prune to ~90 days, do not ignore.
+#   - config.yaml     : tracked (watchlist is low-stakes plaintext; recipient is
+#                       a GitHub Secret, not config). See spec 13.
+#   - data/*.yaml     : tier_one_calendar.yaml and mechanical_moves.yaml are
+#                       source data and must be tracked.
+# Secrets never live in the repo at all; they are GitHub Secrets / env vars.
+# =============================================================================
+
+# --- Secrets / local env (never commit) ---
+.env
+.env.*
+*.env
+secrets.*
+*.pem
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Local build output from `python brief.py --no-send` ---
+# The no-send build writes preview HTML and any scratch charts to disk for
+# inspection. Keep these local-only. Point the no-send output here (e.g. a
+# `preview/` dir or a `*.preview.html` name) so test builds never get committed.
+preview/
+out/
+*.preview.html
+brief_preview.html
+
+# --- Throwaway Phase 0 artifacts (deleted after Phase 0, ignored meanwhile) ---
+test_send.py
+.github/workflows/test-send.yml
+
+# --- Tooling / caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
