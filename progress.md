@@ -11,6 +11,32 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **REAL-SEND PROOF LANDED (2026-06-18):** A real send (commit 3c89da6 on main,
+  state + runs/ dump committed) PROVED the three open unknowns at once, verified by
+  reading the committed last_run.json + runs/2026-06-18.json:
+  1. NARRATIVE UN-DEGRADE: the model produced real NUMBER-FREE sourced causes with
+     valid cause_source_ids (us_equities wsj-22, rates_and_dollar wsj-39, commodities
+     wsj-20, volatility_breadth cnbc-14; crypto correctly "no clear catalyst"/None).
+     First clean non-templated prose run.
+  2. NEW MACRO METRICS FETCH LIVE from the runner: copper 6.38 (yfinance HG=F),
+     cpi_yoy 4.17%, pce_yoy 3.77%, fed_funds 3.63%, hy_spread 2.63% (FRED). The
+     units=pc1 YoY transform fired correctly (CPI is a 4.17% RATE, not a raw index in
+     the hundreds) — structural accuracy holds in production.
+  3. DELIVERY: Brevo DELIVERED (11 sends today during testing); the email reached the
+     Tulane server and landed in JUNK (released by human). NOT a code bug — a
+     free-relay-sender reputation issue from 11 sends/day; one-per-morning at go-live
+     is far less likely to quarantine. allow_repeat_send TEMPORARILY true is what let
+     all 11 send — restore to false at go-live.
+  Independent read-only audits this session (macro-metric plumbing + chart/viewmodel/
+  send paths) found NO bugs: units transform can't be silently dropped, new metrics
+  excluded from CORE_FIELDS so they never trip the banner, bps-vs-pct correct,
+  rebase divide-by-zero guarded, em-dash for thin history, Outlook MIME tree intact.
+  Backward-compat state seeding proven against the real last_run.json (all 5 new keys
+  fold in, correct change field). 226 tests green on py3.12. NEXT: human has the email
+  open and wants LOOK fixes + has questions (new chat); then build the deferred
+  per-stock watchlist/movers table. Open low-risk chore: pin actions/checkout +
+  actions/setup-python off Node 20 (deprecation warning, cosmetic).
+
 - **GO-LIVE IN PROGRESS (2026-06-18):** All 7 phases built + merged to `main`
   (default branch, so the daily-brief.yml crons register and fire). Real sends
   land in the Tulane inbox. Now iterating on look + content quality before
