@@ -85,7 +85,7 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
     # Charts and render are wrapped so a matplotlib/Jinja failure degrades to a
     # chart-free (or templated) brief rather than killing the send (spec §5.6).
     prose_by_section = _brief_lines(report, narrative_results)
-    html, inline_images = _build_html(cfg, today, report, prose_by_section)
+    html, inline_images = _build_html(cfg, today, report, prose_by_section, narrative_results)
 
     if send:
         allow_repeat = bool(cfg.get("monitoring", {}).get("allow_repeat_send", False))
@@ -132,14 +132,6 @@ def _gather_fields() -> dict[str, Field]:
         from engine.metrics import METRIC_KEYS
         return {k: Field(k, 100.0, Source.YFINANCE) for k in METRIC_KEYS}
     return prices.pull_fields()
-
-
-def _templated_brief(report) -> dict[str, str]:
-    """One flat line per metric from numbers + direction (no model, no causes)."""
-    out: dict[str, str] = {}
-    for key, field in report.fields.items():
-        out[key] = templated.templated_line(field, change=None)
-    return out
 
 
 # Map each narrative section to the metric keys whose numbers ground it.
@@ -195,43 +187,82 @@ def _section_numbers(report) -> dict[str, dict[str, float]]:
 
 
 def _section_template_line(report, section_id: str) -> str:
+    """Rich, cause-free computed line for a section (redesign "no empty sections").
+
+    Uses the section's representative metric + its rolling history to build the
+    four-ingredient read minus the causal "why" (spec §5.6). Falls back to the
+    plain per-metric line if the section has no grounding metric.
+    """
     keys = _SECTION_METRICS.get(section_id, ())
+    history = _state_history()
     for k in keys:
         if k in report.fields:
-            return templated.templated_line(report.fields[k], change=None)
-    return f"{section_id}: no clear catalyst."
+            return templated.computed_section_line(
+                report.fields[k], history.get(k, []), section_id=section_id,
+            )
+    return f"{section_id}: no clear catalyst flagged."
 
 
 def _brief_lines(report, narrative_results) -> dict[str, str]:
-    """Prefer model prose per section; fall back to per-metric templated lines."""
+    """Prefer model prose per section; fall back to the rich computed line.
+
+    When the model ran, a section that fell back to a template already carries the
+    rich computed line (the narrative templated_fallback is _section_template_line).
+    When the model did not run at all, build the rich line for every grounded
+    section here so quiet sections are substantive, not bare (HANDOFF_DESIGN).
+    """
     if narrative_results:
         return {sid: res.prose for sid, res in narrative_results.items()}
-    return _templated_brief(report)
+    return {sid: _section_template_line(report, sid) for sid in _SECTION_METRICS}
 
 
-def _build_html(cfg, today: date, report, prose_by_section: dict[str, str]):
+def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narrative_results):
     """Build (html, inline_images), degrading rather than crashing (spec §5.6).
 
     Charts and the Jinja render are the only Phase 7 stages that can raise on the
     runner (matplotlib backend, a malformed view field). If charts fail we ship a
     chart-free degraded brief; if the whole render fails we fall back to the flat
-    templated HTML so an email always goes out.
+    templated HTML so an email always goes out. PNG charts attach inline to their
+    section (rates -> yield curve, commodities -> WTI); the index bar and watchlist
+    sparklines are inline HTML drawn in the template, not images.
     """
     try:
-        charts = _build_charts(cfg, report)
+        charts_by_section = _build_charts(cfg, report)
     except Exception as exc:  # never let a chart failure sink the brief
         print(f"  charts: FAILED, shipping chart-free ({exc!r})")
-        charts, report.degraded = [], True
+        charts_by_section, report.degraded = {}, True
 
-    chart_cids = tuple(c.cid for c in charts)
-    inline_images = [(c.cid, c.png) for c in charts]
+    inline_images = [(c.cid, c.png) for c in charts_by_section.values()]
+    section_charts = {
+        sid: {"cid": c.cid, "caption": cap, "caption_url": url}
+        for sid, (c, cap, url) in _CHART_CAPTIONS_FROM(charts_by_section).items()
+    }
     try:
-        view = _build_view(cfg, today, report, prose_by_section, chart_cids=chart_cids)
+        view = _build_view(
+            cfg, today, report, prose_by_section, narrative_results,
+            section_charts=section_charts,
+        )
         return html_render.render_brief(view), inline_images
     except Exception as exc:  # last-resort: a flat brief beats no brief
         print(f"  render: FAILED, falling back to flat HTML ({exc!r})")
         report.degraded = True
         return _fallback_html(today, report, prose_by_section), []
+
+
+# Caption text + source link per PNG-charted section (spec §7 chart attribution).
+_CHART_META: dict[str, tuple[str, str]] = {
+    "rates_and_dollar": ("FRED series DGS10, DGS2", "https://fred.stlouisfed.org/series/DGS10"),
+    "commodities": ("yfinance CL=F", "https://finance.yahoo.com/quote/CL=F"),
+}
+
+
+def _CHART_CAPTIONS_FROM(charts_by_section):
+    """Attach the caption text + url to each section's chart (read-only join)."""
+    out = {}
+    for sid, chart in charts_by_section.items():
+        caption, url = _CHART_META.get(sid, (chart.summary, ""))
+        out[sid] = (chart, caption, url)
+    return out
 
 
 def _fallback_html(today: date, report, prose_by_section: dict[str, str]) -> str:
@@ -248,20 +279,23 @@ def _fallback_html(today: date, report, prose_by_section: dict[str, str]) -> str
 
 
 def _build_view(
-    cfg, today: date, report, prose_by_section: dict[str, str], *, chart_cids: tuple[str, ...] = (),
+    cfg, today: date, report, prose_by_section: dict[str, str], narrative_results,
+    *, section_charts: dict[str, dict] | None = None,
 ) -> vm.BriefView:
-    """Assemble the validated view-model the template renders (Phase 7).
+    """Assemble the validated view-model the template renders (Phase 7 + redesign).
 
     Pulls the diff line and Top Story order from cached state when present (both
     degrade to quiet/fallback when state is missing, e.g. offline/first run), the
     secondary calendar best-effort, and labels the live zone by actual pull time.
-    Nothing here invents a number or a cause (spec §1, §2).
+    Threads per-section citations from the validated narrative, the inline HTML
+    charts (index bars, watchlist sparklines) drawn from history, and the four
+    text rows of At a Glance. Nothing here invents a number or a cause (spec §1, §2).
     """
+    section_charts = section_charts or {}
     live_label = sch.premarket_label()
     diff_line, order, top_story_id = _diff_and_order(report, today)
-
-    # Section "why" for the At a Glance table reuses the (short) section prose.
-    section_why = {sid: _first_sentence(text) for sid, text in prose_by_section.items()}
+    history = _state_history()
+    directions = _directions(history)
 
     cal = _load_calendar(cfg, today)
     forward_events = tuple({"time_label": e.time_label, "title": e.title} for e in cal.events)
@@ -270,19 +304,37 @@ def _build_view(
     # A failed optional calendar is a degraded run; flag it (read-once, no later mutation).
     degraded = report.degraded or cal.degraded
 
-    glance_rows = vm.build_glance_rows(
-        report.fields, section_why,
-        live_label=live_label,
-        live_why="Pre-market futures and overnight moves, labeled and provisional.",
-        events_why=_events_summary(cal),
-        earnings_why=_earnings_summary(cal),
-        washington_why=section_why.get("washington", "No market-moving policy news flagged."),
-        bottom_line=_bottom_line(degraded, diff_line),
+    # Glance "why" is a SHORT direction/quiet tag, not the full causal sentence
+    # (structure fix #4 — the full read lives once in the body section).
+    glance_tags = {sid: _glance_tag(sid, history, directions) for sid, _, _ in vm._GLANCE_SPEC}
+    glance_rows = vm.build_glance_rows(report.fields, glance_tags, directions=directions)
+
+    # The four text rows below the figure rows (structure fix #2).
+    text_rows = (
+        ("Today's events", _events_summary(cal)),
+        ("Earnings (pre-open)", _earnings_summary(cal)),
+        ("Washington", _first_sentence(prose_by_section.get("washington", "")) or
+            "No market-moving policy news flagged."),
+        ("Bottom line", _bottom_line(degraded, diff_line)),
     )
+
+    # Per-section citations from the validated narrative (item 1); inline HTML charts.
+    cited_by_section = {
+        sid: res.cited_sources for sid, res in (narrative_results or {}).items()
+    }
+    hbars, hbar_maxabs = vm.build_hbars(_index_changes(history))
+    sparklines = vm.build_sparklines(_watchlist_history(cfg, history))
 
     favicon_tickers = _favicon_tickers(cfg)
     sections = vm.build_sections(
-        order, prose_by_section, top_story_id=top_story_id, favicon_tickers=favicon_tickers,
+        order, prose_by_section,
+        top_story_id=top_story_id,
+        favicon_tickers=favicon_tickers,
+        cited_by_section=cited_by_section,
+        section_charts=section_charts,
+        hbars=hbars,
+        hbar_maxabs=hbar_maxabs,
+        sparklines=sparklines,
     )
 
     return vm.BriefView(
@@ -291,30 +343,74 @@ def _build_view(
         degraded=degraded,
         diff_line=diff_line,
         glance_rows=glance_rows,
+        text_rows=text_rows,
         sections=sections,
         live_label=live_label,
         live_figures=(),  # populated once a live pre-market pull is wired (best-effort)
         forward_events=forward_events,
         earnings=earnings,
-        chart_cids=chart_cids,
+        chart_cids=tuple(c["cid"] for c in section_charts.values()),
     )
 
 
-def _build_charts(cfg, report) -> list[charts_mod.Chart]:
-    """Build the enabled default-on charts from settled fields + history (Phase 7).
+def _directions(history: dict[str, list[float]]) -> dict[str, str]:
+    """Per-metric settled direction (up/down/flat) from the last two closes."""
+    out: dict[str, str] = {}
+    for key, hist in history.items():
+        if len(hist) >= 2 and hist[-1] is not None and hist[-2] is not None:
+            delta = hist[-1] - hist[-2]
+            out[key] = "up" if delta > 0 else ("down" if delta < 0 else "flat")
+    return out
 
-    Each builder returns None on thin data and is simply skipped; a chart is never
-    forced. Offline/no-state runs still render the brief without charts. History is
-    loaded once and shared across all three builders.
+
+# Short, scannable At-a-Glance tags by section (no cause, just the read).
+_GLANCE_TAG_KEY: dict[str, str] = {
+    "us_equities": "sp500", "rates_and_dollar": "ust10y",
+    "commodities": "wti", "crypto": "btc", "volatility_breadth": "vix",
+}
+
+
+def _glance_tag(section_id: str, history: dict[str, list[float]], directions: dict[str, str]) -> str:
+    """A 3-5 word direction tag for the glance row (structure fix #4)."""
+    key = _GLANCE_TAG_KEY.get(section_id)
+    direction = directions.get(key) if key else None
+    if direction == "up":
+        return "Higher on the session"
+    if direction == "down":
+        return "Lower on the session"
+    if direction == "flat":
+        return "Little changed"
+    return "Quiet"
+
+
+def _watchlist_history(cfg, history: dict[str, list[float]]) -> dict[str, list[float]]:
+    """Watchlist ticker -> recent close series for sparklines.
+
+    Only the metrics we already track in state have history; watchlist tickers are
+    arbitrary symbols, so sparklines are drawn only for those that coincide with a
+    tracked metric. A watchlist with no tracked overlap simply draws no sparkline.
+    """
+    watchlist = cfg.get("watchlist", []) or []
+    out: dict[str, list[float]] = {}
+    for ticker in watchlist:
+        key = ticker.lower()
+        if key in history and history[key]:
+            out[ticker] = history[key]
+    return out
+
+
+def _build_charts(cfg, report) -> dict[str, charts_mod.Chart]:
+    """Build the enabled default-on PNG charts, keyed by their owning section.
+
+    The index daily-change bar and watchlist sparklines are now inline HTML (drawn
+    in the template, never blocked), so only the yield curve (rates) and the WTI
+    trend (commodities) remain PNGs. Each builder returns None on thin data and is
+    simply skipped; a chart is never forced. History is shared across builders.
     """
     flags = cfg.get("charts", {}) or {}
     history = _state_history()
-    built: list[charts_mod.Chart] = []
+    built: dict[str, charts_mod.Chart] = {}
 
-    if flags.get("index_bar"):
-        chart = charts_mod.index_change_bar(_index_changes(history))
-        if chart:
-            built.append(chart)
     if flags.get("yield_curve"):
         chart = charts_mod.yield_curve_and_trend(
             ust2y=_usable_value(report, "ust2y"),
@@ -322,11 +418,11 @@ def _build_charts(cfg, report) -> list[charts_mod.Chart]:
             ten_year_history=history.get("ust10y", []),
         )
         if chart:
-            built.append(chart)
+            built["rates_and_dollar"] = chart
     if flags.get("oil_trend"):
         chart = charts_mod.wti_trend(history.get("wti", []))
         if chart:
-            built.append(chart)
+            built["commodities"] = chart
     return built
 
 

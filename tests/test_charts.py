@@ -41,3 +41,19 @@ def test_wti_trend_produces_png():
 
 def test_wti_trend_thin_data_returns_none():
     assert charts.wti_trend([76.0]) is None
+
+
+def test_charts_carry_text_summary_for_alt():
+    # Each PNG chart carries a one-line, image-free summary used as the img alt so
+    # a blocked image still leaves a readable line (HANDOFF_DESIGN).
+    rates = charts.yield_curve_and_trend(ust2y=4.05, ust10y=4.43, ten_year_history=[4.3, 4.4, 4.43])
+    assert "4.43%" in rates.summary and "2s10s" in rates.summary
+    oil = charts.wti_trend([70.0, 72.0, 74.0])
+    assert "WTI" in oil.summary and "$74" in oil.summary
+
+
+def test_white_palette_constants():
+    # Restyled to "The Tape" white: blue is the one accent, no navy/gold left.
+    assert charts.PAPER == "#FFFFFF"
+    assert charts.BLUE == "#3a6ea5"
+    assert charts.INK == "#1b1a17"

@@ -18,10 +18,21 @@ from typing import Callable, Optional
 from engine.matcher import Article
 
 # Verify exact feed URLs at build time (spec §7). These are the launch set.
+#
+# WSJ feeds are the free, public Dow Jones RSS endpoints (headline + summary only,
+# which is all the explanation engine needs, spec §5.6); the full article stays
+# behind the reader's own subscription. Verified resolving from the build host
+# 2026-06-18. FT's public RSS is best-effort: it frequently blocks automated
+# fetches, so it degrades to [] exactly like any other unreachable feed and never
+# blocks the run. We add free RSS + clickable headline links ONLY — no credential
+# storage or paywall scraping (HANDOFF_DESIGN: WSJ/FT decision).
 FEEDS: tuple[str, ...] = (
-    "https://www.cnbc.com/id/100003114/device/rss/rss.html",   # CNBC markets
-    "http://feeds.marketwatch.com/marketwatch/topstories/",     # MarketWatch top
-    "https://www.federalreserve.gov/feeds/press_all.xml",       # Fed press releases
+    "https://www.cnbc.com/id/100003114/device/rss/rss.html",       # CNBC markets
+    "http://feeds.marketwatch.com/marketwatch/topstories/",         # MarketWatch top
+    "https://www.federalreserve.gov/feeds/press_all.xml",           # Fed press releases
+    "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",  # WSJ Markets (free)
+    "https://feeds.content.dowjones.io/public/rss/RSSWorldNews",    # WSJ World News (free)
+    "https://www.ft.com/markets?format=rss",                        # FT Markets (best-effort)
 )
 
 # A feed fetcher returns raw feed text for a URL (injected for tests).
@@ -91,4 +102,8 @@ def _prefix_for(url: str) -> str:
         return "mw"
     if "federalreserve" in url:
         return "fed"
+    if "dowjones" in url or "wsj" in url:
+        return "wsj"
+    if "ft.com" in url:
+        return "ft"
     return "rss"

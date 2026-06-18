@@ -42,23 +42,61 @@ def build_message(
     text_fallback: Optional[str] = None,
     inline_images: Optional[Iterable[InlineImage]] = None,
 ) -> EmailMessage:
-    """Build the brief message. With inline_images, the HTML part and the images
-    form a multipart/related so each `cid:` reference resolves to an attachment.
+    """Build the brief message in the Outlook-reliable MIME shape.
+
+    With inline images the tree is:
+
+        multipart/related
+          multipart/alternative
+            text/plain
+            text/html
+          image/png   (inline, Content-ID <cid>)
+          image/png   ...
+
+    The images are SIBLINGS of the alternative, not children of the HTML part.
+    Outlook desktop often will not traverse a related image nested under the HTML
+    sub-part (the broken-chart-box bug, HANDOFF_DESIGN CID fix), but it resolves
+    `cid:` references against siblings of the alternative reliably. Each image is
+    marked Content-Disposition: inline with an angle-bracketed Content-ID; the HTML
+    `src="cid:<cid>"` uses the bare cid.
+
+    With no inline images we keep the simple alternative(text, html) tree.
     """
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = _require("EMAIL_FROM")
     msg["To"] = _require("EMAIL_TO")
-    msg.set_content(text_fallback or "This brief requires an HTML-capable client.")
-    msg.add_alternative(html, subtype="html")
 
-    for cid, png in inline_images or ():
-        if not png:
-            continue
-        # Attach onto the HTML alternative so client treats it as related, not a
-        # separate download. Content-ID is angle-bracketed; src uses the bare cid.
-        html_part = msg.get_payload()[-1]
-        html_part.add_related(png, maintype="image", subtype="png", cid=f"<{cid}>")
+    images = [(cid, png) for cid, png in (inline_images or ()) if png]
+    text = text_fallback or "This brief requires an HTML-capable client."
+
+    if not images:
+        msg.set_content(text)
+        msg.add_alternative(html, subtype="html")
+        return msg
+
+    # Build the inner text/html alternative first, then make the top message a
+    # multipart/related whose first part is that alternative and whose remaining
+    # parts are the images (siblings of the alternative, the Outlook-reliable tree).
+    alt = EmailMessage()
+    alt.set_content(text)
+    alt.add_alternative(html, subtype="html")
+
+    msg.set_content("See the HTML part for this brief.")  # seed a payload, replaced below
+    msg.make_mixed()
+    msg.set_type("multipart/related")
+    msg.set_payload([])  # drop the seed; rebuild children explicitly
+    msg.attach(alt)
+    for cid, png in images:
+        img = EmailMessage()
+        img.set_content(
+            png,
+            maintype="image",
+            subtype="png",
+            cid=f"<{cid}>",
+            disposition="inline",
+        )
+        msg.attach(img)
     return msg
 
 

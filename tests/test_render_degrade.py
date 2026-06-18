@@ -33,8 +33,10 @@ def test_chart_failure_ships_chart_free_degraded(monkeypatch):
 
     monkeypatch.setattr(brief, "_build_charts", boom)
     report = _report()
-    html, images = brief._build_html({"charts": {}}, DAY, report, {"us_equities": "S&P firmer. tail"})
-    assert "Morning Market Brief" in html
+    html, images = brief._build_html(
+        {"charts": {}}, DAY, report, {"us_equities": "S&P firmer. tail"}, {},
+    )
+    assert "The Tape" in html       # the full editorial brief still renders, chart-free
     assert images == []
     assert report.degraded is True
 
@@ -47,7 +49,9 @@ def test_render_failure_falls_back_to_flat_html(monkeypatch):
 
     monkeypatch.setattr(html_render, "render_brief", boom)
     report = _report()
-    html, images = brief._build_html({"charts": {}}, DAY, report, {"us_equities": "flat line. tail"})
+    html, images = brief._build_html(
+        {"charts": {}}, DAY, report, {"us_equities": "flat line. tail"}, {},
+    )
     assert "Degraded run" in html
     assert "flat line" in html
     assert report.degraded is True

@@ -27,4 +27,4 @@ _env = Environment(
 
 def render_brief(view: BriefView) -> str:
     """Render the full email HTML from a validated view-model."""
-    return _env.get_template(_TEMPLATE_NAME).render(view=view)
+    return _env.get_template(_TEMPLATE_NAME).render(view=view, text_rows=view.text_rows)
