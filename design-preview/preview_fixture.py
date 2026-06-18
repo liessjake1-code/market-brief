@@ -100,6 +100,24 @@ def build_view():
     stock_sparklines = {
         "watchlist": vm.build_stock_sparklines(watch_order, stock_quotes),
     }
+    # Demo per-stock "why" notes (in production these come from the validated model
+    # via vm.build_stock_notes; hand-written here for a realistic preview).
+    stock_notes = {
+        "movers": (
+            {"ticker": "NVDA", "why": "rose after a fresh AI chip order from a hyperscaler.",
+             "source_label": "CNBC: Nvidia lands new cloud order", "source_url": "https://cnbc.com/nvda"},
+            {"ticker": "TSLA", "why": "gained into a delivery update ahead of the quarter close.",
+             "source_label": "Reuters: Tesla deliveries in focus", "source_url": "https://reuters.com/tsla"},
+            # AMD has no clear catalyst this morning, so it is OMITTED here (production
+            # build_stock_notes drops catalyst-free stocks rather than print a reason).
+        ),
+        "watchlist": (
+            {"ticker": "SPCX", "why": "held its IPO gains as lockup chatter eased.",
+             "source_label": "Bloomberg: SpaceX shares steady", "source_url": "https://bloomberg.com/spcx"},
+            {"ticker": "NVDA", "why": "led the watchlist on the same AI order.",
+             "source_label": "CNBC: Nvidia lands new cloud order", "source_url": "https://cnbc.com/nvda"},
+        ),
+    }
 
     # NOTE: the prose + chart_takeaway strings below are DEMO fixture data only,
     # hand-written for a realistic preview. In production every figure is computed
@@ -119,6 +137,7 @@ def build_view():
             chart_takeaway=(chart or {}).get("takeaway", ""),
             stat_table=table,
             macro_strip=macro_strips.get(sid, ()),
+            stock_notes=stock_notes.get(sid, ()),
         )
 
     movers_fav = (

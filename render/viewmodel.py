@@ -131,6 +131,10 @@ class SectionView:
     # Current-level macro backdrop readings (CPI/PCE/Fed funds), shown as a compact
     # standalone row, NOT in the change table (monthly series have no daily delta).
     macro_strip: tuple[MacroReading, ...] = ()
+    # Per-stock "why" lines for Movers/Watchlist: each {ticker, why, source_label,
+    # source_url}. Only stocks with a real sourced cause appear; a stock with no
+    # catalyst is omitted (never a fabricated reason). Empty for non-stock sections.
+    stock_notes: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -408,6 +412,38 @@ def build_movers_table(
     return build_stock_table([m.ticker for m in selection.movers], quotes)
 
 
+def build_stock_notes(
+    tickers: list[str],
+    stock_results: dict[str, "object"],
+) -> tuple[dict, ...]:
+    """Per-stock 'why' lines for Movers/Watchlist, in caller order.
+
+    `stock_results` maps a "stock:<TICKER>" id -> a narrative SectionResult. A
+    ticker is included only when its cause is real (not the templated fallback)
+    and non-empty; a stock with no catalyst is omitted rather than given a
+    fabricated reason (spec §2). The matched article (if any) renders as a
+    clickable source. Never invents a cause or a number.
+    """
+    notes: list[dict] = []
+    for ticker in tickers:
+        res = stock_results.get(f"stock:{ticker}")
+        if res is None or getattr(res, "templated", False):
+            continue
+        why = (getattr(res, "prose", "") or "").strip()
+        if not why or why.lower().startswith("no clear catalyst"):
+            continue
+        cited = getattr(res, "cited_sources", ()) or ()
+        source_label = cited[0]["title"] if cited else ""
+        source_url = cited[0]["url"] if cited else ""
+        notes.append({
+            "ticker": ticker,
+            "why": why,
+            "source_label": source_label,
+            "source_url": source_url,
+        })
+    return tuple(notes)
+
+
 def build_stock_sparklines(
     tickers: list[str],
     quotes: dict[str, "object"],
@@ -471,6 +507,7 @@ def build_sections(
     macro_strips: Optional[dict[str, tuple[MacroReading, ...]]] = None,
     stock_tables: Optional[dict[str, tuple[stats_mod.StatRow, ...]]] = None,
     stock_sparklines: Optional[dict[str, tuple[Spark, ...]]] = None,
+    stock_notes: Optional[dict[str, tuple[dict, ...]]] = None,
     hbars: tuple[HBar, ...] = (),
     hbar_maxabs: float = 1.0,
     sparklines: tuple[Spark, ...] = (),
@@ -491,6 +528,7 @@ def build_sections(
     macro_strips = macro_strips or {}
     stock_tables = stock_tables or {}
     stock_sparklines = stock_sparklines or {}
+    stock_notes = stock_notes or {}
     out: list[SectionView] = []
     for section_id in order:
         if section_id in _BODY_SKIP:
@@ -529,5 +567,6 @@ def build_sections(
             chart_takeaway=chart.get("takeaway", ""),
             stat_table=stat_table,
             macro_strip=macro_strips.get(section_id, ()),
+            stock_notes=stock_notes.get(section_id, ()),
         ))
     return tuple(out)

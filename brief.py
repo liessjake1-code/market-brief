@@ -23,6 +23,7 @@ from datetime import date
 import os
 
 from engine import diff as diff_mod
+from engine import movers as movers_mod
 from engine import schedule as sch
 from engine import state as state_mod
 from engine import top_story as top_story_mod
@@ -34,6 +35,7 @@ from render import viewmodel as vm
 from render.send import send as smtp_send
 from sources import calendar as calendar_mod
 from sources import prices
+from sources import stocks as stocks_mod
 from sources.quality import Field, Source, assess
 
 EXIT_OK = 0
@@ -83,8 +85,22 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
         # Exit non-zero so the failed run is visible in Actions (spec §7.5).
         return EXIT_HARD_FLOOR
 
+    # --- per-stock data for Watchlist/Movers (best-effort, never core) --- #
+    # A stock-fetch failure is a non-event: it never trips the banner or hard floor
+    # (those stay core-metric/model only). select_movers applies the spec §7
+    # best-effort rule (watchlist-only by default, upgrade on a reliable screen).
+    stock_quotes = _gather_stocks(cfg)
+    movers_sel = movers_mod.select_movers(
+        stock_quotes,
+        watchlist=cfg.get("watchlist") or [],
+        universe=cfg.get("movers_universe") or [],
+        min_volume=float(cfg.get("movers_min_volume", 0) or 0),
+    )
+
     # --- explanation engine (Phase 6); degrades to templated lines ------- #
-    narrative_results, narrative_degraded = _run_narrative(cfg, report, today)
+    narrative_results, narrative_degraded = _run_narrative(
+        cfg, report, today, stock_quotes=stock_quotes, movers_sel=movers_sel,
+    )
     if narrative_degraded:
         report.degraded = True
 
@@ -92,7 +108,10 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
     # Charts and render are wrapped so a matplotlib/Jinja failure degrades to a
     # chart-free (or templated) brief rather than killing the send (spec §5.6).
     prose_by_section = _brief_lines(report, narrative_results)
-    html, inline_images = _build_html(cfg, today, report, prose_by_section, narrative_results)
+    html, inline_images = _build_html(
+        cfg, today, report, prose_by_section, narrative_results,
+        stock_quotes=stock_quotes, movers_sel=movers_sel,
+    )
 
     if send:
         allow_repeat = bool(cfg.get("monitoring", {}).get("allow_repeat_send", False))
@@ -116,7 +135,7 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
         preview_path = _write_preview(html)
         print(f"  preview: wrote {preview_path}")
 
-    _commit_state(send=send, today=today, fields=report.fields)
+    _commit_state(send=send, today=today, fields=report.fields, stock_quotes=stock_quotes)
     return EXIT_OK
 
 
@@ -141,6 +160,29 @@ def _gather_fields() -> dict[str, Field]:
     return prices.pull_fields()
 
 
+def _stock_universe(cfg) -> list[str]:
+    """The de-duped union of watchlist + movers_universe, in a stable order."""
+    seen: dict[str, None] = {}
+    for ticker in (cfg.get("watchlist") or []) + (cfg.get("movers_universe") or []):
+        seen.setdefault(ticker, None)
+    return list(seen.keys())
+
+
+def _gather_stocks(cfg) -> dict[str, stocks_mod.StockQuote]:
+    """Best-effort per-stock pull for Watchlist/Movers; {} when offline or empty.
+
+    Never raises and never feeds the degraded banner (stocks are not core data).
+    """
+    if os.environ.get(_OFFLINE_ENV) == "1":
+        return {}
+    tickers = _stock_universe(cfg)
+    if not tickers:
+        return {}
+    quotes = stocks_mod.fetch_stocks(tickers, days=state_mod.STOCK_HISTORY_KEEP)
+    print(f"  stocks: pulled {len(quotes)}/{len(tickers)} tickers")
+    return quotes
+
+
 # Map each narrative section to the metric keys whose numbers ground it.
 _SECTION_METRICS: dict[str, tuple[str, ...]] = {
     "us_equities": ("sp500", "nasdaq", "dow", "russell"),
@@ -151,11 +193,37 @@ _SECTION_METRICS: dict[str, tuple[str, ...]] = {
 }
 
 
-def _run_narrative(cfg, report, today):
+def _company_names(cfg) -> dict[str, str]:
+    """Best-effort ticker -> company name from the config domain map for matching.
+
+    e.g. NVDA -> "nvidia" from nvidia.com. Used only as an extra news-match keyword
+    (the ticker symbol itself always matches), so a missing/odd name just narrows
+    matching to the symbol. Never load-bearing.
+    """
+    domains = cfg.get("ticker_domains", {}) or {}
+    out: dict[str, str] = {}
+    for ticker, domain in domains.items():
+        if isinstance(domain, str) and "." in domain:
+            out[ticker] = domain.split(".")[0]
+    return out
+
+
+def _stock_tickers_in_play(cfg, movers_sel) -> list[str]:
+    """The tickers that need a per-stock 'why': watchlist + the selected movers."""
+    seen: dict[str, None] = {}
+    for ticker in (cfg.get("watchlist") or []):
+        seen.setdefault(ticker, None)
+    for m in movers_sel.movers:
+        seen.setdefault(m.ticker, None)
+    return list(seen.keys())
+
+
+def _run_narrative(cfg, report, today, *, stock_quotes=None, movers_sel=None):
     """Run the explanation engine when enabled; else templated lines (spec §5.6).
 
     Skipped offline and when the model is disabled or unkeyed, so the brief always
-    ships. Returns (results_by_section, degraded).
+    ships. Folds per-stock pseudo-sections (keyed 'stock:<TICKER>') for the watchlist
+    + selected movers into the SAME single call. Returns (results_by_section, degraded).
     """
     narrative_cfg = cfg.get("narrative", {})
     offline = os.environ.get(_OFFLINE_ENV) == "1"
@@ -170,16 +238,34 @@ def _run_narrative(cfg, report, today):
     articles = news_mod.fetch_articles()
     bundles = narr.build_bundles(section_numbers, articles,
                                  watchlist_tickers=cfg.get("watchlist") or [])
+    # Per-stock "why" bundles for the tickers actually shown (watchlist + movers).
+    if movers_sel is not None:
+        stock_tickers = _stock_tickers_in_play(cfg, movers_sel)
+        bundles += narr.build_stock_bundles(
+            stock_tickers, articles, company_names=_company_names(cfg),
+        )
     results, degraded, raw = narr.generate(
         bundles,
         model=narrative_cfg.get("model", "claude-sonnet-4-6"),
         tolerance_pct=float(narrative_cfg.get("number_tolerance_pct", 0.05)),
-        templated_fallback=lambda sid: _section_template_line(report, sid),
+        templated_fallback=lambda sid: _stock_or_section_fallback(report, sid),
     )
     runs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs")
     narr.dump_run(results, raw, runs_dir=runs_dir, date_str=today.isoformat())
     print(f"  narrative: model run, degraded={degraded}")
     return results, degraded
+
+
+def _stock_or_section_fallback(report, section_id: str) -> str:
+    """Templated fallback: a quiet line for a stock pseudo-section, else the section line."""
+    if section_id.startswith(narr_stock_prefix()):
+        return "no clear catalyst"
+    return _section_template_line(report, section_id)
+
+
+def narr_stock_prefix() -> str:
+    from engine import narrative as narr
+    return narr.STOCK_SECTION_PREFIX
 
 
 def _section_numbers(report) -> dict[str, dict[str, float]]:
@@ -244,6 +330,8 @@ def _brief_lines(report, narrative_results) -> dict[str, str]:
     history = _state_history()
     out: dict[str, str] = {}
     for sid, res in narrative_results.items():
+        if sid.startswith(narr_stock_prefix()):
+            continue  # per-stock pseudo-sections render via stock_notes, not body prose
         field = _representative_field(report, sid)
         if res.templated or field is None:
             # Model rejected (templated_fallback already set res.prose to the
@@ -264,7 +352,8 @@ def _representative_field(report, section_id: str):
     return None
 
 
-def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narrative_results):
+def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narrative_results,
+                *, stock_quotes=None, movers_sel=None):
     """Build (html, inline_images), degrading rather than crashing (spec §5.6).
 
     Charts and the Jinja render are the only Phase 7 stages that can raise on the
@@ -291,6 +380,7 @@ def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narr
         view = _build_view(
             cfg, today, report, prose_by_section, narrative_results,
             section_charts=section_charts,
+            stock_quotes=stock_quotes, movers_sel=movers_sel,
         )
         return html_render.render_brief(view), inline_images
     except Exception as exc:  # last-resort: a flat brief beats no brief
@@ -351,6 +441,7 @@ def _fallback_html(today: date, report, prose_by_section: dict[str, str]) -> str
 def _build_view(
     cfg, today: date, report, prose_by_section: dict[str, str], narrative_results,
     *, section_charts: dict[str, dict] | None = None,
+    stock_quotes=None, movers_sel=None,
 ) -> vm.BriefView:
     """Assemble the validated view-model the template renders (Phase 7 + redesign).
 
@@ -413,6 +504,25 @@ def _build_view(
     macro_strips = vm.build_macro_strips(stat_values)
 
     favicon_tickers = _favicon_tickers(cfg)
+
+    # Per-stock tables / sparklines / "why" notes for Watchlist + Movers, built from
+    # the best-effort stock pull + the spec §7 movers selection. Empty when offline
+    # or the pull failed (the sections then show their honest quiet line).
+    stock_quotes = stock_quotes or {}
+    watch_order = cfg.get("watchlist") or []
+    movers_order = [m.ticker for m in movers_sel.movers] if movers_sel else []
+    stock_tables = {
+        "watchlist": vm.build_stock_table(watch_order, stock_quotes),
+        "movers": vm.build_stock_table(movers_order, stock_quotes),
+    }
+    stock_sparklines = {
+        "watchlist": vm.build_stock_sparklines(watch_order, stock_quotes),
+    }
+    stock_notes = {
+        "watchlist": vm.build_stock_notes(watch_order, narrative_results or {}),
+        "movers": vm.build_stock_notes(movers_order, narrative_results or {}),
+    }
+
     sections = vm.build_sections(
         order, prose_by_section,
         top_story_id=top_story_id,
@@ -421,6 +531,9 @@ def _build_view(
         section_charts=section_charts,
         stat_tables=stat_tables,
         macro_strips=macro_strips,
+        stock_tables=stock_tables,
+        stock_sparklines=stock_sparklines,
+        stock_notes=stock_notes,
         hbars=hbars,
         hbar_maxabs=hbar_maxabs,
         sparklines=sparklines,
@@ -667,7 +780,7 @@ def _last_sent_date() -> str | None:
         return None
 
 
-def _commit_state(*, send: bool, today: date | None = None, fields=None) -> None:
+def _commit_state(*, send: bool, today: date | None = None, fields=None, stock_quotes=None) -> None:
     """Single choke point for ALL state writes (spec §8.5 invariant).
 
     Under --no-send (or when the guard skipped the send) this is an unconditional
@@ -680,6 +793,7 @@ def _commit_state(*, send: bool, today: date | None = None, fields=None) -> None
     st = state_mod.load_state()
     if st.missing and os.environ.get(_OFFLINE_ENV) != "1":
         st = state_mod.backfill(prices.fetch_history)
+    _append_stock_history(st, stock_quotes or {}, today or date.today())
     if fields:
         today_iso = (today or date.today()).isoformat()
         for key, field in fields.items():
@@ -709,6 +823,37 @@ def _commit_state(*, send: bool, today: date | None = None, fields=None) -> None
     state_mod.save_state(st)
     state_mod.commit_state_back()
     print("  state: written + commit-back attempted")
+
+
+def _append_stock_history(st, stock_quotes: dict, today: date) -> None:
+    """Append today's close/date/volume per pulled stock into the state's stocks map.
+
+    Mirrors the metric-history append: seeds a stock entry if new (so a freshly
+    added watchlist/movers ticker starts accruing history on its first real send),
+    appends today's close + ISO date in lockstep, and stamps prev_close / close /
+    volume / change_pct. A ticker with no usable close is skipped. save_state trims
+    each stock history to STOCK_HISTORY_KEEP.
+    """
+    if not stock_quotes:
+        return
+    today_iso = today.isoformat()
+    for ticker, quote in stock_quotes.items():
+        if quote.close is None:
+            continue
+        state_mod.seed_stock_state(st.data, ticker)
+        entry = st.data["stocks"][ticker]
+        hist = list(entry.get("history", []))
+        hist.append(quote.close)
+        entry["history"] = hist
+        dates = list(entry.get("history_dates", []))
+        while len(dates) < len(hist) - 1:
+            dates.append("")
+        dates.append(today_iso)
+        entry["history_dates"] = dates
+        entry["prev_close"] = entry.get("close")
+        entry["close"] = quote.close
+        entry["volume"] = quote.volume
+        entry["change_pct"] = quote.change_pct
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
