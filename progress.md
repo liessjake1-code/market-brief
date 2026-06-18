@@ -218,9 +218,13 @@ history; this entry covers the last phase.
   the daily state commit-back silently fails.
 - Verified the set against `.github/workflows/daily-brief.yml`: complete, no gaps.
 
-### 3. Real watchlist in config.yaml — TODO
-- `watchlist: []` is still empty (most-skipped block, spec §13). Needs real
-  tickers + matching `ticker_domains` favicon entries before/at first send.
+### 3. Real watchlist in config.yaml — DONE (2026-06-18)
+- watchlist = [SPCX, QUBT, TSLA, NVDA]. All four verified live on yfinance from
+  the 3.12 env (5-day pulls OK). Note: SPCX is SpaceX common stock — it IPO'd on
+  Nasdaq 2026-06-12, so it is a real tradable symbol, not a fund/proxy.
+- ticker_domains favicons added: SPCX->spacex.com, QUBT->quantumcomputinginc.com,
+  TSLA->tesla.com (NVDA->nvidia.com already present). Favicon is graceful-fail, so
+  a wrong domain only drops the glyph; the row still reads from text.
 
 ### 4. First real production send — TODO
 - Trigger `daily-brief.yml` (workflow_dispatch, branch `build/phases`). Audit
