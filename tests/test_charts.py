@@ -113,6 +113,33 @@ def test_charts_render_without_dates_gracefully():
     assert _is_png(rates.png)
 
 
+def test_date_xaxis_ticks_are_separated():
+    # The bug: adjacent x-ticks crowded into each other ("Jun JuJu 18"). Ticks must
+    # now be at least _MIN_TICK_GAP indices apart so labels never overlap.
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    n = 21
+    dates = [f"2026-06-{d:02d}" for d in range(1, n + 1)]
+    span = charts._date_xaxis(ax, dates, n)
+    ticks = sorted(ax.get_xticks())
+    plt.close(fig)
+    assert span  # a real "Jun 1 - Jun 21" span was returned
+    gaps = [b - a for a, b in zip(ticks, ticks[1:])]
+    assert all(g >= charts._MIN_TICK_GAP for g in gaps), ticks
+
+
+def test_date_xaxis_no_duplicate_final_tick():
+    # The appended last tick must not duplicate (or sit adjacent to) the prior pick.
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    n = 22
+    dates = [f"2026-06-{d:02d}" for d in range(1, n + 1)]
+    charts._date_xaxis(ax, dates, n)
+    ticks = list(ax.get_xticks())
+    plt.close(fig)
+    assert len(ticks) == len(set(ticks))  # no duplicate index
+
+
 def test_pad_ylim_widens_a_tiny_range(monkeypatch):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
@@ -120,6 +147,20 @@ def test_pad_ylim_widens_a_tiny_range(monkeypatch):
     charts._pad_ylim(ax, series)
     lo, hi = ax.get_ylim()
     plt.close(fig)
-    # The enforced floor (1% of ~4.4 = ~4.4 bps) widens the view well past the
-    # 2 bps data range, so the line is not magnified into a sawtooth.
+    # The enforced floor (3% of ~4.4 = ~13 bps) times the headroom widens the view
+    # well past the 2 bps data range, so the line is not magnified into a sawtooth.
     assert (hi - lo) > 0.04
+
+
+def test_pad_ylim_calms_a_near_flat_jagged_month():
+    # The real production shape: a ~15 bps jagged month around 4.4-4.6. The padded
+    # view must be wider than the raw range so the noise sits in the middle of the
+    # panel, not filling it edge to edge.
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    series = [4.46, 4.49, 4.55, 4.575, 4.50, 4.47, 4.45, 4.45, 4.43, 4.425, 4.49]
+    raw_span = max(series) - min(series)
+    charts._pad_ylim(ax, series)
+    lo, hi = ax.get_ylim()
+    plt.close(fig)
+    assert (hi - lo) > raw_span * 1.5   # real wiggle no longer fills the panel

@@ -18,7 +18,7 @@ from datetime import date
 from typing import Optional
 
 from engine import stats as stats_mod
-from engine.metrics import METRICS_BY_KEY, is_yield
+from engine.metrics import METRICS_BY_KEY, is_monthly, is_yield
 from render import source_links
 from sources.quality import Field
 
@@ -91,6 +91,19 @@ class Spark:
 
 
 @dataclass(frozen=True)
+class MacroReading:
+    """One current-level macro backdrop reading (e.g. 'CPI (YoY)' -> '4.17%').
+
+    Monthly/administered series (CPI, PCE, the policy rate) update roughly once a
+    month, so a session/week/month change is meaningless. They render as a compact
+    row of standalone current levels instead of a change table (the human's call).
+    """
+
+    label: str
+    value: str
+
+
+@dataclass(frozen=True)
 class SectionView:
     section_id: str
     title: str
@@ -115,6 +128,9 @@ class SectionView:
     # The session/week/month stat table shown at the TOP of the section box, before
     # the prose (redesign "Visuals + macro"). Empty for sections with no metrics.
     stat_table: tuple[stats_mod.StatRow, ...] = ()
+    # Current-level macro backdrop readings (CPI/PCE/Fed funds), shown as a compact
+    # standalone row, NOT in the change table (monthly series have no daily delta).
+    macro_strip: tuple[MacroReading, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -189,16 +205,24 @@ def _glance_figures(
 
 
 # Which metrics each section's stat table shows, in display order (redesign).
-# rates_and_dollar carries the macro additions as NUMBERS (not extra chart lines):
-# the policy rate, both inflation rates, and the high-yield credit spread, plus a
-# synthetic 2s10s spread row. commodities adds copper.
+# The session/week/month CHANGE table per section: only DAILY-trading series, whose
+# trailing change is meaningful. The rates table keeps the two Treasuries, DXY, and
+# the high-yield credit spread (all daily), plus a synthetic 2s10s spread row.
+# Commodities adds copper. The monthly/administered macro series (CPI, PCE, the
+# policy rate) are deliberately NOT here — they render as a current-level backdrop
+# strip instead (see SECTION_MACRO_METRICS), since a daily delta is meaningless.
 SECTION_STAT_METRICS: dict[str, tuple[str, ...]] = {
     "us_equities": ("sp500", "nasdaq", "dow", "russell"),
-    "rates_and_dollar": ("ust10y", "ust2y", "dxy", "fed_funds",
-                         "cpi_yoy", "pce_yoy", "hy_spread"),
+    "rates_and_dollar": ("ust10y", "ust2y", "dxy", "hy_spread"),
     "commodities": ("wti", "gold", "copper"),
     "crypto": ("btc", "eth"),
     "volatility_breadth": ("vix",),
+}
+
+# Monthly/administered macro readings shown as a compact current-level strip under
+# the section's stat table (CPI YoY, PCE YoY, the policy rate). Order = display order.
+SECTION_MACRO_METRICS: dict[str, tuple[str, ...]] = {
+    "rates_and_dollar": ("cpi_yoy", "pce_yoy", "fed_funds"),
 }
 
 
@@ -222,6 +246,29 @@ def build_stat_tables(
             if spread is not None:
                 rows.insert(2, spread)   # after 10Y/2Y, before DXY
         out[section_id] = tuple(rows)
+    return out
+
+
+def build_macro_strips(
+    values: dict[str, Optional[float]],
+) -> dict[str, tuple[MacroReading, ...]]:
+    """Current-level macro backdrop readings per section (CPI/PCE/Fed funds).
+
+    These monthly/administered series have no meaningful daily change, so they are
+    shown as standalone current levels rather than session/week/month rows. A metric
+    with no current value is skipped (nothing to show honestly).
+    """
+    out: dict[str, tuple[MacroReading, ...]] = {}
+    for section_id, metrics in SECTION_MACRO_METRICS.items():
+        readings: list[MacroReading] = []
+        for key in metrics:
+            value = values.get(key)
+            if value is None:
+                continue
+            m = METRICS_BY_KEY.get(key)
+            label = m.label if m else key
+            readings.append(MacroReading(label=label, value=stats_mod._level(value, key)))
+        out[section_id] = tuple(readings)
     return out
 
 
@@ -377,6 +424,7 @@ def build_sections(
     cited_by_section: Optional[dict[str, tuple[dict, ...]]] = None,
     section_charts: Optional[dict[str, dict]] = None,
     stat_tables: Optional[dict[str, tuple[stats_mod.StatRow, ...]]] = None,
+    macro_strips: Optional[dict[str, tuple[MacroReading, ...]]] = None,
     hbars: tuple[HBar, ...] = (),
     hbar_maxabs: float = 1.0,
     sparklines: tuple[Spark, ...] = (),
@@ -394,6 +442,7 @@ def build_sections(
     cited_by_section = cited_by_section or {}
     section_charts = section_charts or {}
     stat_tables = stat_tables or {}
+    macro_strips = macro_strips or {}
     out: list[SectionView] = []
     for section_id in order:
         if section_id in _BODY_SKIP:
@@ -419,5 +468,6 @@ def build_sections(
             chart_caption_url=chart.get("caption_url", ""),
             chart_takeaway=chart.get("takeaway", ""),
             stat_table=stat_tables.get(section_id, ()),
+            macro_strip=macro_strips.get(section_id, ()),
         ))
     return tuple(out)

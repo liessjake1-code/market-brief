@@ -41,6 +41,12 @@ class Metric:
     # Value display formatter hint: "index" (no decimals), "price" (2 dp), or
     # "rate" (2 dp + % suffix). Drives _fmt_value across the render layer.
     display: str = "price"
+    # True for monthly/administered series (CPI, PCE, the policy rate) whose value
+    # updates roughly once a month or only at a scheduled meeting. A session/week
+    # change is meaningless for these (it is almost always zero), so they are shown
+    # as a current-level "macro backdrop" reading, NOT in the session/week/month
+    # change table. They stay OPTIONAL and never trip the banner.
+    monthly: bool = False
 
 
 # Order matches the Part 4.1 schema for readable, diffable state files. The first
@@ -61,11 +67,11 @@ METRICS: tuple[Metric, ...] = (
     # --- Macro additions (all optional, free; spec accuracy rules unchanged) --- #
     Metric("copper", "Copper", "pct", "yfinance", display="price", optional=True),
     Metric("cpi_yoy", "CPI inflation (YoY)", "bps", "fred", rate_like=True,
-           optional=True, display="rate"),
+           optional=True, display="rate", monthly=True),
     Metric("pce_yoy", "PCE inflation (YoY)", "bps", "fred", rate_like=True,
-           optional=True, display="rate"),
+           optional=True, display="rate", monthly=True),
     Metric("fed_funds", "Fed funds rate", "bps", "fred", rate_like=True,
-           optional=True, display="rate"),
+           optional=True, display="rate", monthly=True),
     Metric("hy_spread", "High-yield credit spread", "bps", "fred", rate_like=True,
            optional=True, display="rate"),
 )
@@ -78,6 +84,8 @@ METRICS_BY_KEY: dict[str, Metric] = {m.key: m for m in METRICS}
 YIELD_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.change_unit == "bps")
 RATE_LIKE_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.rate_like)
 OPTIONAL_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.optional)
+# Monthly/administered series shown as a current-level backdrop, not a change row.
+MONTHLY_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.monthly)
 
 
 def is_yield(key: str) -> bool:
@@ -93,3 +101,9 @@ def is_yield(key: str) -> bool:
 def is_optional(key: str) -> bool:
     """Optional metric: never enters the core health check (spec §7.5)."""
     return key in OPTIONAL_KEYS
+
+
+def is_monthly(key: str) -> bool:
+    """Monthly/administered series: shown as a current-level backdrop reading,
+    not in the session/week/month change table (a daily delta is meaningless)."""
+    return key in MONTHLY_KEYS

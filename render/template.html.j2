@@ -103,6 +103,20 @@
   </table>
   {%- endif -%}
 {%- endmacro -%}
+{# Macro backdrop strip: current-level readings (CPI/PCE/Fed funds) shown standalone,
+   NOT as session/week/month change rows (monthly series have no meaningful daily move). #}
+{%- macro macro_strip(readings) -%}
+  {%- if readings -%}
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px 0;"><tr>
+    {%- for r in readings -%}
+    <td style="padding:0 22px 0 0;white-space:nowrap;vertical-align:bottom;">
+      <span style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.6px;">{{ r.label }}</span>
+      <span style="font-family:{{ MONO }};font-size:13px;color:#1b1a17;font-weight:600;padding-left:6px;">{{ r.value }}</span>
+    </td>
+    {%- endfor -%}
+  </tr></table>
+  {%- endif -%}
+{%- endmacro -%}
 {# A body section: serif heading, stat table, prose, optional inline chart (PNG cid
    or HTML bars/sparklines), favicon-as-text, source citation, hairline divider.
    The Top Story renders in its own tinted block with a "TOP STORY" kicker. #}
@@ -112,6 +126,7 @@
     <div style="font-family:{{ SANS }};font-size:10px;color:#8a877f;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Top Story</div>
     <div style="font-family:{{ SERIF }};font-size:19px;color:#1b1a17;font-weight:600;padding:2px 0 6px 0;line-height:1.25;">{{ section.title }}</div>
     {{ stat_table(section.stat_table) }}
+    {{ macro_strip(section.macro_strip) }}
     <div style="font-family:{{ SANS }};font-size:13px;color:#3c3a33;line-height:1.6;">{{ section.prose }}</div>
     {{ section_extras(section) }}
     {{ sources_line(section.sources) }}
@@ -119,6 +134,7 @@
   {% else %}
   <div style="font-family:{{ SERIF }};font-size:16px;color:#1b1a17;font-weight:600;padding-bottom:4px;">{{ section.title }}</div>
   {{ stat_table(section.stat_table) }}
+  {{ macro_strip(section.macro_strip) }}
   <div style="font-family:{{ SANS }};font-size:13px;color:#3c3a33;line-height:1.6;">{{ section.prose }}</div>
   {{ section_extras(section) }}
   {{ sources_line(section.sources) }}
