@@ -76,6 +76,27 @@ def test_fetch_articles_degrades_on_feed_failure():
     assert news.fetch_articles(fetcher=boom) == []
 
 
+# --- _extract_json: tolerate fenced / prefixed model replies -------------- #
+def test_extract_json_strips_json_fence():
+    raw = '```json\n{"a": 1}\n```'
+    assert json.loads(N._extract_json(raw)) == {"a": 1}
+
+
+def test_extract_json_strips_bare_fence():
+    raw = '```\n{"a": 1}\n```'
+    assert json.loads(N._extract_json(raw)) == {"a": 1}
+
+
+def test_extract_json_strips_preamble():
+    raw = 'Here is the JSON you asked for:\n{"a": 1, "b": [2, 3]}'
+    assert json.loads(N._extract_json(raw)) == {"a": 1, "b": [2, 3]}
+
+
+def test_extract_json_leaves_clean_json_untouched():
+    raw = '{"a": 1}'
+    assert N._extract_json(raw) == '{"a": 1}'
+
+
 # --- narrative orchestration (fake model) --------------------------------- #
 def _bundles():
     section_numbers = {

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Callable, Optional
 
@@ -112,6 +113,27 @@ def _user_message(bundles: list[SectionBundle]) -> str:
 # --------------------------------------------------------------------------- #
 # The model call (isolated, injectable)
 # --------------------------------------------------------------------------- #
+def _extract_json(text: str) -> str:
+    """Return the JSON object embedded in a model reply.
+
+    The system prompt asks for strict JSON, but models routinely wrap it in a
+    ```json fence or add a one-line preamble. json.loads on that raises and the
+    whole call silently degrades to templates (the failure we hit on the first
+    real sends). Strip a fenced block if present, else fall back to the span
+    from the first '{' to the last '}'. Returns the input unchanged if neither
+    applies, so a clean reply is untouched and json.loads still does the real
+    validation downstream.
+    """
+    stripped = text.strip()
+    fence = re.search(r"```(?:json)?\s*(.*?)\s*```", stripped, re.DOTALL)
+    if fence:
+        return fence.group(1).strip()
+    start, end = stripped.find("{"), stripped.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return stripped[start : end + 1]
+    return stripped
+
+
 def _call_model(system: str, user_json: str, model: str) -> str:
     """Real Anthropic call (anthropic==0.109.2). Imported lazily."""
     import anthropic
@@ -124,7 +146,8 @@ def _call_model(system: str, user_json: str, model: str) -> str:
         system=system,
         messages=[{"role": "user", "content": user_json}],
     )
-    return "".join(block.text for block in resp.content if block.type == "text")
+    text = "".join(block.text for block in resp.content if block.type == "text")
+    return _extract_json(text)
 
 
 # --------------------------------------------------------------------------- #
