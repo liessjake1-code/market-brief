@@ -106,6 +106,49 @@ def build_bundles(
     return bundles
 
 
+# Per-stock pseudo-sections are keyed "stock:<TICKER>" so they fold into the same
+# single model call as the real sections without colliding with a section id.
+STOCK_SECTION_PREFIX = "stock:"
+
+_STOCK_PRIMER = (
+    "This is a single company. Write a one-line, number-free reason for its move "
+    "drawn ONLY from the supplied articles about this company. If none of the "
+    "articles explain it, set cause to \"no clear catalyst\" and confidence low. "
+    "Do not generalize from the broad market."
+)
+
+
+def build_stock_bundles(
+    tickers: list[str],
+    articles: list[Article],
+    *,
+    company_names: Optional[dict[str, str]] = None,
+) -> list[SectionBundle]:
+    """One bundle per surfaced ticker, keyed 'stock:<TICKER>'.
+
+    Articles are matched on the ticker symbol plus the company name (when known),
+    so a per-stock cause is grounded in reporting about that company. Numbers are
+    empty: the model writes a number-free cause and the system writes every figure
+    (the per-stock stat table), so a stock cause carrying any number is rejected.
+    """
+    company_names = company_names or {}
+    bundles: list[SectionBundle] = []
+    for ticker in tickers:
+        keywords = [ticker]
+        name = company_names.get(ticker)
+        if name:
+            keywords.append(name)
+        section_id = f"{STOCK_SECTION_PREFIX}{ticker}"
+        scored = match_section(section_id, articles, extra_keywords=keywords)
+        bundles.append(SectionBundle(
+            section_id=section_id,
+            numbers={},
+            primer=_STOCK_PRIMER,
+            articles=scored,
+        ))
+    return bundles
+
+
 def _user_message(bundles: list[SectionBundle]) -> str:
     sections = []
     for b in bundles:

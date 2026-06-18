@@ -36,6 +36,10 @@ SCHEMA_VERSION = 1
 STATE_FILENAME = "last_run.json"
 RUNS_DIRNAME = "runs"       # per-run structured JSON dumps, committed for auditing (§6.11)
 HISTORY_KEEP = 25            # ~25 closes: enough for 20-day high/low + streaks (Part 4.1)
+STOCK_HISTORY_KEEP = 10      # per-watchlist/movers stock: session + ~1-week sparkline,
+                             # smaller than HISTORY_KEEP to keep the committed file lean
+                             # (the week/month windows fill in over ~21 sessions, em dash
+                             # until then, same self-heal as the macro metrics).
 BACKFILL_MIN_DAYS = 20       # pull at least 20 trading days on first run (spec §5.5)
 STALE_TRADING_DAYS = 3       # older than this many trading days => stale (spec §5.5)
 
@@ -57,8 +61,29 @@ class State:
     def metrics(self) -> dict:
         return self.data.get("metrics", {})
 
+    @property
+    def stocks(self) -> dict:
+        """Per-ticker watchlist/movers data, kept apart from macro `metrics`.
+
+        Backward compatible: a state file written before this feature has no
+        `stocks` key, so this returns {} and every accessor below degrades to
+        empty rather than raising.
+        """
+        return self.data.get("stocks", {})
+
     def history(self, key: str) -> list[float]:
         return list(self.metrics.get(key, {}).get("history", []))
+
+    def stock_history(self, ticker: str) -> list[float]:
+        return list(self.stocks.get(ticker, {}).get("history", []))
+
+    def stock_history_dates(self, ticker: str) -> list[str]:
+        """ISO dates parallel to stock_history(ticker); empty until accrued."""
+        return list(self.stocks.get(ticker, {}).get("history_dates", []))
+
+    def stock_volume(self, ticker: str) -> Optional[float]:
+        """Most-recent session volume for a stock; None until first stored."""
+        return self.stocks.get(ticker, {}).get("volume")
 
     def history_dates(self, key: str) -> list[str]:
         """ISO dates parallel to history(key); empty if not yet recorded.
@@ -109,6 +134,9 @@ def _empty_state() -> dict:
         "run_timestamp_ct": None,
         "chosen_top_story": None,
         "metrics": {k: _empty_metric(k) for k in METRIC_KEYS},
+        # Per-ticker watchlist/movers data, populated on the first real send and
+        # seeded per ticker by seed_stock_state() during commit-back.
+        "stocks": {},
     }
 
 
@@ -116,6 +144,35 @@ def _empty_metric(key: str) -> dict:
     m = {"close": None, "prev_close": None, "history": [], "history_dates": []}
     m["change_bps" if is_yield(key) else "change_pct"] = None
     return m
+
+
+def _empty_stock() -> dict:
+    """Scaffold for one watchlist/movers ticker.
+
+    Stocks always carry change_pct (never change_bps): they are equities, not
+    rate-like series. `volume` gates the movers floor (config movers_min_volume).
+    """
+    return {
+        "close": None,
+        "prev_close": None,
+        "history": [],
+        "history_dates": [],
+        "volume": None,
+        "change_pct": None,
+    }
+
+
+def seed_stock_state(data: dict, ticker: str) -> None:
+    """Fold a not-yet-tracked ticker into an existing state dict, in place.
+
+    Mirrors the macro-metric seeding done at commit-back: a newly added
+    watchlist/movers symbol starts accruing history on its first real send
+    without a manual state edit. An already-present ticker is left untouched so
+    a seed never clobbers real stored history.
+    """
+    stocks = data.setdefault("stocks", {})
+    if ticker not in stocks:
+        stocks[ticker] = _empty_stock()
 
 
 def _validate_loaded(data: dict) -> None:
@@ -249,6 +306,13 @@ def save_state(state: State, *, repo_root: Optional[str] = None) -> str:
             # Trim dates in lockstep so history[i] and history_dates[i] stay aligned.
             if isinstance(metric.get("history_dates"), list):
                 metric["history_dates"] = metric["history_dates"][-HISTORY_KEEP:]
+    # Trim per-stock history to the smaller STOCK_HISTORY_KEEP (committed-file
+    # size), dates in lockstep with closes.
+    for stock in data.get("stocks", {}).values():
+        if isinstance(stock, dict) and isinstance(stock.get("history"), list):
+            stock["history"] = stock["history"][-STOCK_HISTORY_KEEP:]
+            if isinstance(stock.get("history_dates"), list):
+                stock["history_dates"] = stock["history_dates"][-STOCK_HISTORY_KEEP:]
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

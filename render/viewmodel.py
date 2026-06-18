@@ -131,6 +131,10 @@ class SectionView:
     # Current-level macro backdrop readings (CPI/PCE/Fed funds), shown as a compact
     # standalone row, NOT in the change table (monthly series have no daily delta).
     macro_strip: tuple[MacroReading, ...] = ()
+    # Per-stock "why" lines for Movers/Watchlist: each {ticker, why, source_label,
+    # source_url}. Only stocks with a real sourced cause appear; a stock with no
+    # catalyst is omitted (never a fabricated reason). Empty for non-stock sections.
+    stock_notes: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -377,6 +381,82 @@ def build_hbars(index_changes: dict[str, float]) -> tuple[tuple[HBar, ...], floa
     return bars, maxabs
 
 
+def build_stock_table(
+    tickers: list[str],
+    quotes: dict[str, "object"],
+) -> tuple[stats_mod.StatRow, ...]:
+    """Per-stock session/week/month stat rows for Watchlist/Movers, in caller order.
+
+    `quotes` maps ticker -> StockQuote (sources.stocks). A ticker with no quote is
+    skipped (best-effort: the fetch may have dropped it). Each row is labeled by
+    its symbol and shows percent change; thin history shows an em dash per window.
+    """
+    rows: list[stats_mod.StatRow] = []
+    for ticker in tickers:
+        quote = quotes.get(ticker)
+        if quote is None:
+            continue
+        rows.append(stats_mod.stock_stat_row(quote))
+    return tuple(rows)
+
+
+def build_movers_table(
+    selection: "object",
+    quotes: dict[str, "object"],
+) -> tuple[stats_mod.StatRow, ...]:
+    """Per-stock stat rows for the Movers section, in the selection's ranked order.
+
+    `selection` is an engine.movers.MoversSelection; its rows are already ranked by
+    absolute session move and gated by the volume floor / watchlist-only rule.
+    """
+    return build_stock_table([m.ticker for m in selection.movers], quotes)
+
+
+def build_stock_notes(
+    tickers: list[str],
+    stock_results: dict[str, "object"],
+) -> tuple[dict, ...]:
+    """Per-stock 'why' lines for Movers/Watchlist, in caller order.
+
+    `stock_results` maps a "stock:<TICKER>" id -> a narrative SectionResult. A
+    ticker is included only when its cause is real (not the templated fallback)
+    and non-empty; a stock with no catalyst is omitted rather than given a
+    fabricated reason (spec §2). The matched article (if any) renders as a
+    clickable source. Never invents a cause or a number.
+    """
+    notes: list[dict] = []
+    for ticker in tickers:
+        res = stock_results.get(f"stock:{ticker}")
+        if res is None or getattr(res, "templated", False):
+            continue
+        why = (getattr(res, "prose", "") or "").strip()
+        if not why or why.lower().startswith("no clear catalyst"):
+            continue
+        cited = getattr(res, "cited_sources", ()) or ()
+        source_label = cited[0]["title"] if cited else ""
+        source_url = cited[0]["url"] if cited else ""
+        notes.append({
+            "ticker": ticker,
+            "why": why,
+            "source_label": source_label,
+            "source_url": source_url,
+        })
+    return tuple(notes)
+
+
+def build_stock_sparklines(
+    tickers: list[str],
+    quotes: dict[str, "object"],
+) -> tuple[Spark, ...]:
+    """Inline sparklines for a set of tickers, drawn from their StockQuote history."""
+    series = {}
+    for ticker in tickers:
+        quote = quotes.get(ticker)
+        if quote is not None:
+            series[ticker] = list(quote.history)
+    return build_sparklines(series)
+
+
 def build_sparklines(series_by_ticker: dict[str, list[float]]) -> tuple[Spark, ...]:
     """Inline sparklines for the Watchlist (pure; no matplotlib).
 
@@ -425,6 +505,9 @@ def build_sections(
     section_charts: Optional[dict[str, dict]] = None,
     stat_tables: Optional[dict[str, tuple[stats_mod.StatRow, ...]]] = None,
     macro_strips: Optional[dict[str, tuple[MacroReading, ...]]] = None,
+    stock_tables: Optional[dict[str, tuple[stats_mod.StatRow, ...]]] = None,
+    stock_sparklines: Optional[dict[str, tuple[Spark, ...]]] = None,
+    stock_notes: Optional[dict[str, tuple[dict, ...]]] = None,
     hbars: tuple[HBar, ...] = (),
     hbar_maxabs: float = 1.0,
     sparklines: tuple[Spark, ...] = (),
@@ -443,6 +526,9 @@ def build_sections(
     section_charts = section_charts or {}
     stat_tables = stat_tables or {}
     macro_strips = macro_strips or {}
+    stock_tables = stock_tables or {}
+    stock_sparklines = stock_sparklines or {}
+    stock_notes = stock_notes or {}
     out: list[SectionView] = []
     for section_id in order:
         if section_id in _BODY_SKIP:
@@ -453,6 +539,18 @@ def build_sections(
             favicons = _favicons_for(favicon_tickers.get(section_id, []))
         is_top = section_id == top_story_id
         chart = section_charts.get(section_id, {})
+        # Movers/Watchlist get their per-STOCK table; every other section uses the
+        # metric-keyed table. Watchlist sparklines are now real per-stock series
+        # (not the old accidental core-metric overlap).
+        if section_id in stock_tables:
+            stat_table = stock_tables[section_id]
+        else:
+            stat_table = stat_tables.get(section_id, ())
+        # Per-section stock sparklines take precedence; fall back to the legacy
+        # watchlist-only `sparklines` arg (preview fixture + older callers).
+        section_sparks = stock_sparklines.get(section_id, ())
+        if not section_sparks and section_id == "watchlist":
+            section_sparks = sparklines
         out.append(SectionView(
             section_id=section_id,
             title=SECTION_TITLES.get(section_id, section_id),
@@ -462,12 +560,13 @@ def build_sections(
             sources=_sources_for(cited_by_section.get(section_id, ())),
             hbars=hbars if is_top else (),
             hbar_maxabs=hbar_maxabs if is_top else 1.0,
-            sparklines=sparklines if section_id == "watchlist" else (),
+            sparklines=section_sparks,
             chart_cid=chart.get("cid"),
             chart_caption=chart.get("caption", ""),
             chart_caption_url=chart.get("caption_url", ""),
             chart_takeaway=chart.get("takeaway", ""),
-            stat_table=stat_tables.get(section_id, ()),
+            stat_table=stat_table,
             macro_strip=macro_strips.get(section_id, ()),
+            stock_notes=stock_notes.get(section_id, ()),
         ))
     return tuple(out)
