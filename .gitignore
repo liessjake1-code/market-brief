@@ -60,3 +60,8 @@ Thumbs.db
 .vscode/
 *.swp
 *~
+
+# Design redesign scratch (previews, screenshots) — not repo content
+design-preview/
+Screenshot *.png
+daily_market_brief_claude_design.html

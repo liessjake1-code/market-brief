@@ -68,6 +68,10 @@ class SectionResult:
     cause_source_id: Optional[str]
     confidence: str
     templated: bool = False          # True when the model output was rejected -> fallback
+    # The matched article(s) behind the causal "why", resolved from cause_source_id
+    # to {title, url}, so the template can render a clickable citation (spec §7).
+    # Empty when the section made no cause claim (quiet tape, honest one-liner).
+    cited_sources: tuple[dict, ...] = ()
 
 
 # --------------------------------------------------------------------------- #
@@ -188,7 +192,7 @@ def generate(
         entry = parsed.get(b.section_id)
         ok, result = _accept_section(
             b.section_id, entry, inputs_by_section[b.section_id],
-            valid_source_ids[b.section_id], tolerance_pct,
+            valid_source_ids[b.section_id], tolerance_pct, b.articles,
         )
         if not ok and not retried_once:
             # Retry the whole call once (Part 4.4 step 5 / §6.9).
@@ -199,7 +203,7 @@ def generate(
                 entry = parsed.get(b.section_id)
                 ok, result = _accept_section(
                     b.section_id, entry, inputs_by_section[b.section_id],
-                    valid_source_ids[b.section_id], tolerance_pct,
+                    valid_source_ids[b.section_id], tolerance_pct, b.articles,
                 )
         if not ok:
             result = _templated_result(b.section_id, templated_fallback)
@@ -228,6 +232,7 @@ def _accept_section(
     inputs: list[float],
     valid_source_ids: set[str],
     tolerance_pct: float,
+    articles: Optional[list["ScoredArticle"]] = None,
 ) -> tuple[bool, Optional[SectionResult]]:
     """Validate one section's number check + cause check. (Part 4.4 / 4.5)"""
     if not isinstance(entry, dict):
@@ -254,7 +259,28 @@ def _accept_section(
         cause_source_id=cause_source_id,
         confidence=str(entry.get("confidence", "low")),
         templated=False,
+        cited_sources=_resolve_cited(cause_source_id, articles),
     )
+
+
+def _resolve_cited(
+    cause_source_id: Optional[str], articles: Optional[list["ScoredArticle"]],
+) -> tuple[dict, ...]:
+    """Map a validated cause_source_id to the matched article's {title, url}.
+
+    The source_id is already proven to be one we supplied (validated above), so
+    this only renders a citation the reader can click (spec §7). Returns empty when
+    the section made no cause claim, so the template shows no empty "Source" label.
+    """
+    if not cause_source_id or not articles:
+        return ()
+    for s in articles:
+        if s.article.source_id == cause_source_id:
+            url = s.article.url or ""
+            if not url:
+                return ()
+            return ({"title": s.article.title, "url": url},)
+    return ()
 
 
 def _templated_result(section_id: str, templated_fallback: Callable[[str], str]) -> SectionResult:
