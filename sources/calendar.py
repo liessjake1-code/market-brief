@@ -16,10 +16,13 @@ testable offline.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Optional
+
+logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 15
 
@@ -111,12 +114,14 @@ def _try_fmp(fetch: JsonFetcher, day: date, key: str) -> Optional[CalendarData]:
     try:
         econ_raw = fetch(FMP_ECON, {"from": iso, "to": iso, "apikey": key})
         earn_raw = fetch(FMP_EARNINGS, {"from": iso, "to": iso, "apikey": key})
-    except Exception:
+    except Exception as exc:
+        logger.warning("calendar: FMP fetch failed (%s)", _describe_error(exc))
         return None
     try:
         events = _parse_fmp_events(econ_raw)
         earnings = _parse_fmp_earnings(earn_raw)
-    except Exception:
+    except Exception as exc:
+        logger.warning("calendar: FMP parse failed (%s)", _describe_error(exc))
         return None
     return CalendarData(events=events, earnings=earnings, degraded=False)
 
@@ -126,14 +131,29 @@ def _try_finnhub(fetch: JsonFetcher, day: date, key: str) -> Optional[CalendarDa
     try:
         econ_raw = fetch(FINNHUB_ECON, {"from": iso, "to": iso, "token": key})
         earn_raw = fetch(FINNHUB_EARNINGS, {"from": iso, "to": iso, "token": key})
-    except Exception:
+    except Exception as exc:
+        logger.warning("calendar: Finnhub fetch failed (%s)", _describe_error(exc))
         return None
     try:
         events = _parse_finnhub_events(econ_raw)
         earnings = _parse_finnhub_earnings(earn_raw)
-    except Exception:
+    except Exception as exc:
+        logger.warning("calendar: Finnhub parse failed (%s)", _describe_error(exc))
         return None
     return CalendarData(events=events, earnings=earnings, degraded=False)
+
+
+def _describe_error(exc: Exception) -> str:
+    """A short diagnosable reason, surfacing the HTTP status code when present.
+
+    requests' HTTPError carries the response (and thus the status) on `.response`;
+    a 402/403 here is the telltale sign of a free tier that moved the endpoint to
+    paid, which is exactly what the human needs to see in the run log.
+    """
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status is not None:
+        return f"HTTP {status}: {type(exc).__name__}"
+    return f"{type(exc).__name__}: {exc}"
 
 
 # --------------------------------------------------------------------------- #
