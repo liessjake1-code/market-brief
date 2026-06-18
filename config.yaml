@@ -54,9 +54,16 @@ movers_universe:           # curated liquid names, best-effort upgrade over watc
 
 movers_min_volume: 50000   # volume floor; below this a move is not headlined
 
-watchlist: []              # add tickers before first send (spec §13), for example: [AAPL, NVDA, MSFT]
+watchlist:                 # personally-tracked names (spec §13); all four verified live on yfinance 2026-06-18
+  - SPCX
+  - QUBT
+  - TSLA
+  - NVDA
 
 ticker_domains:            # for the Movers/Watchlist favicon glyph
   NVDA: nvidia.com
   AMD: amd.com
   KMX: carmax.com
+  SPCX: spacex.com
+  QUBT: quantumcomputinginc.com
+  TSLA: tesla.com
