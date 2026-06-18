@@ -408,6 +408,9 @@ def _build_view(
     stat_values = {k: (f.value if f and f.is_usable else None)
                    for k, f in report.fields.items()}
     stat_tables = vm.build_stat_tables(stat_values, history)
+    # Monthly/administered macro readings (CPI/PCE/Fed funds) shown as a current-level
+    # backdrop strip, not in the change table (a daily delta is meaningless for them).
+    macro_strips = vm.build_macro_strips(stat_values)
 
     favicon_tickers = _favicon_tickers(cfg)
     sections = vm.build_sections(
@@ -417,6 +420,7 @@ def _build_view(
         cited_by_section=cited_by_section,
         section_charts=section_charts,
         stat_tables=stat_tables,
+        macro_strips=macro_strips,
         hbars=hbars,
         hbar_maxabs=hbar_maxabs,
         sparklines=sparklines,

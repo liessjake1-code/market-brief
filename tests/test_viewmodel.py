@@ -155,3 +155,45 @@ def test_stat_table_renders_in_section(tmp_path):
     sections = vm.build_sections(["commodities"], {}, top_story_id="us_equities",
                                  stat_tables=tables)
     assert len(sections[0].stat_table) == 3  # WTI, Gold, Copper
+
+
+def test_rates_table_excludes_monthly_macro_series():
+    # CPI/PCE/Fed funds are monthly -> NOT in the session/week/month change table.
+    values = {"ust10y": 4.43, "ust2y": 4.05, "dxy": 100.8, "hy_spread": 2.63,
+              "cpi_yoy": 4.17, "pce_yoy": 3.77, "fed_funds": 3.63}
+    histories = {k: _ramp(22, v - 0.1, 0.01) for k, v in values.items()}
+    tables = vm.build_stat_tables(values, histories)
+    labels = [r.label for r in tables["rates_and_dollar"]]
+    for monthly_label in ("CPI inflation (YoY)", "PCE inflation (YoY)", "Fed funds rate"):
+        assert monthly_label not in labels, monthly_label
+    # The daily series (incl. HY spread + the synthetic spread) still appear.
+    assert "High-yield credit spread" in labels
+    assert "2s10s spread" in labels
+
+
+def test_macro_strip_carries_monthly_readings():
+    values = {"cpi_yoy": 4.17, "pce_yoy": 3.77, "fed_funds": 3.63}
+    strips = vm.build_macro_strips(values)
+    rates = strips["rates_and_dollar"]
+    labels = [r.label for r in rates]
+    assert labels == ["CPI inflation (YoY)", "PCE inflation (YoY)", "Fed funds rate"]
+    # Levels are formatted as rate percentages.
+    by_label = {r.label: r.value for r in rates}
+    assert by_label["CPI inflation (YoY)"] == "4.17%"
+    assert by_label["Fed funds rate"] == "3.63%"
+
+
+def test_macro_strip_skips_missing_value():
+    # A metric with no current value is dropped (nothing to show honestly).
+    strips = vm.build_macro_strips({"cpi_yoy": 4.17, "pce_yoy": None, "fed_funds": 3.63})
+    labels = [r.label for r in strips["rates_and_dollar"]]
+    assert "PCE inflation (YoY)" not in labels
+    assert labels == ["CPI inflation (YoY)", "Fed funds rate"]
+
+
+def test_macro_strip_reaches_section_view():
+    values = {"cpi_yoy": 4.17, "pce_yoy": 3.77, "fed_funds": 3.63}
+    strips = vm.build_macro_strips(values)
+    sections = vm.build_sections(["rates_and_dollar"], {}, top_story_id="us_equities",
+                                 macro_strips=strips)
+    assert len(sections[0].macro_strip) == 3

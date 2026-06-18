@@ -98,24 +98,41 @@ def _fmt_date(iso: str) -> str:
     return f"{d:%b} {d.day}"
 
 
+# Minimum gap (in data-point indices) between two dated x-ticks, so their labels
+# never crowd into each other ("Jun JuJu 18"). At ~21 points across the panel this
+# keeps ticks comfortably apart.
+_MIN_TICK_GAP = 4
+
+
 def _date_xaxis(ax, dates: list[str], n: int) -> str:
-    """Label up to 4 x-ticks with real dates; return a 'May 20 - Jun 18' span label.
+    """Label up to 4 well-separated x-ticks with real dates; return a span label.
 
     `dates` is parallel to the n-point series (most-recent-last); entries may be ''
-    for older pre-schema closes. Falls back to clean unlabeled ticks (and an empty
-    span) when no usable dates are present, so the axis is never wrong.
+    for older pre-schema closes. Ticks are chosen evenly across the labelled points
+    AND forced at least `_MIN_TICK_GAP` indices apart so adjacent labels never
+    overlap. Falls back to clean unlabeled ticks (and an empty span) when no usable
+    dates are present, so the axis is never wrong.
     """
     labeled = [(i, _fmt_date(dates[i])) for i in range(n) if i < len(dates) and _fmt_date(dates[i])]
     if not labeled:
         ax.set_xticks([])
         return ""
-    # Pick ~4 evenly spaced ticks from the points that have a real date.
-    step = max(1, len(labeled) // 4)
-    picks = labeled[::step]
-    if labeled[-1] not in picks:
-        picks.append(labeled[-1])
-    ax.set_xticks([i for i, _ in picks])
-    ax.set_xticklabels([lbl for _, lbl in picks], fontsize=7)
+    # Evenly spaced target positions across the labelled span (first, ~4 ticks, last).
+    first_idx, last_idx = labeled[0][0], labeled[-1][0]
+    by_idx = dict(labeled)
+    targets = [round(first_idx + (last_idx - first_idx) * k / 3) for k in range(4)]
+    # Snap each target to the nearest point that actually has a date.
+    avail = [i for i, _ in labeled]
+    picks: list[int] = []
+    for t in targets:
+        nearest = min(avail, key=lambda i: abs(i - t))
+        # Keep only ticks at least _MIN_TICK_GAP apart so labels never collide.
+        if not picks or nearest - picks[-1] >= _MIN_TICK_GAP:
+            picks.append(nearest)
+    if picks and picks[-1] != last_idx and last_idx - picks[-1] >= _MIN_TICK_GAP:
+        picks.append(last_idx)
+    ax.set_xticks(picks)
+    ax.set_xticklabels([by_idx[i] for i in picks], fontsize=7)
     first_lbl, last_lbl = labeled[0][1], labeled[-1][1]
     return f"{first_lbl} - {last_lbl}" if first_lbl != last_lbl else last_lbl
 
@@ -132,20 +149,22 @@ def _titled(ax, title: str, subtitle: str) -> None:
                 ha="left", va="bottom", family="monospace")
 
 
-def _pad_ylim(ax, series: list[float], *, min_frac: float = 0.01) -> None:
+def _pad_ylim(ax, series: list[float], *, min_frac: float = 0.03,
+              headroom: float = 2.0) -> None:
     """Pad the y-limits so a small real range is not magnified into a sawtooth.
 
     A 14 bps move over a month is real but tiny; left to autoscale, matplotlib
     fills the panel and the line reads as random noise. We enforce a minimum
-    visible span of `min_frac` of the series level (e.g. 1% of a 4.4% yield ~ 4
-    bps floor) centered on the data, and add light headroom, so a quiet metric
-    reads as a quiet, gently-sloped line.
+    visible span of `min_frac` of the series level (3% of a 4.4% yield ~ 13 bps
+    floor) centered on the data, then multiply by `headroom` so the real wiggle
+    occupies only the middle of the panel. A quiet metric then reads as a quiet,
+    gently-sloped line instead of a panel-filling sawtooth.
     """
     lo, hi = min(series), max(series)
     mid = (lo + hi) / 2.0
     span = hi - lo
     floor = abs(mid) * min_frac
-    half = max(span, floor) / 2.0 * 1.3  # 1.3 = light headroom above/below
+    half = max(span, floor) / 2.0 * headroom
     ax.set_ylim(mid - half, mid + half)
 
 

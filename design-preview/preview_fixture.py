@@ -72,6 +72,7 @@ def build_view():
     }
     values = {k: v[-1] for k, v in histories.items()}
     stat_tables = vm.build_stat_tables(values, histories)
+    macro_strips = vm.build_macro_strips(values)
 
     # NOTE: the prose + chart_takeaway strings below are DEMO fixture data only,
     # hand-written for a realistic preview. In production every figure is computed
@@ -87,6 +88,7 @@ def build_view():
             chart_caption_url=(chart or {}).get("caption_url", ""),
             chart_takeaway=(chart or {}).get("takeaway", ""),
             stat_table=stat_tables.get(sid, ()),
+            macro_strip=macro_strips.get(sid, ()),
         )
 
     movers_fav = (

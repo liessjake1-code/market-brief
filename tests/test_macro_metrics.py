@@ -10,6 +10,7 @@ from __future__ import annotations
 from engine.metrics import (
     METRIC_KEYS,
     METRICS_BY_KEY,
+    is_monthly,
     is_optional,
     is_yield,
 )
@@ -32,6 +33,16 @@ def test_new_metrics_are_optional_and_non_core():
     for key in NEW_KEYS:
         assert is_optional(key), key
         assert key not in CORE_FIELDS, key
+
+
+def test_monthly_series_flagged():
+    # CPI/PCE/Fed funds are monthly/administered -> shown as a backdrop reading,
+    # not a session/week/month change row (a daily delta is meaningless).
+    for key in ("cpi_yoy", "pce_yoy", "fed_funds"):
+        assert is_monthly(key), key
+    # Daily-trading series are NOT monthly, so they keep the change table.
+    for key in ("copper", "hy_spread", "ust10y", "wti"):
+        assert not is_monthly(key), key
 
 
 def test_rate_metrics_are_rate_like():
