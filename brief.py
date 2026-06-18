@@ -70,8 +70,13 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
         # Exit non-zero so the failed run is visible in Actions (spec §7.5).
         return EXIT_HARD_FLOOR
 
-    # --- build templated brief (model + full template come later) -------- #
-    lines = _templated_brief(report)
+    # --- explanation engine (Phase 6); degrades to templated lines ------- #
+    narrative_results, narrative_degraded = _run_narrative(cfg, report, today)
+    if narrative_degraded:
+        report.degraded = True
+
+    # --- build brief (full editorial template is Phase 7) ---------------- #
+    lines = _brief_lines(report, narrative_results)
     html = _render_templated_html(today, report, lines)
 
     if send:
@@ -108,6 +113,73 @@ def _templated_brief(report) -> dict[str, str]:
     for key, field in report.fields.items():
         out[key] = templated.templated_line(field, change=None)
     return out
+
+
+# Map each narrative section to the metric keys whose numbers ground it.
+_SECTION_METRICS: dict[str, tuple[str, ...]] = {
+    "us_equities": ("sp500", "nasdaq", "dow", "russell"),
+    "rates_and_dollar": ("ust10y", "ust2y", "dxy"),
+    "commodities": ("wti", "gold"),
+    "crypto": ("btc", "eth"),
+    "volatility_breadth": ("vix",),
+}
+
+
+def _run_narrative(cfg, report, today):
+    """Run the explanation engine when enabled; else templated lines (spec §5.6).
+
+    Skipped offline and when the model is disabled or unkeyed, so the brief always
+    ships. Returns (results_by_section, degraded).
+    """
+    narrative_cfg = cfg.get("narrative", {})
+    offline = os.environ.get(_OFFLINE_ENV) == "1"
+    if offline or not narrative_cfg.get("enabled") or not os.environ.get("ANTHROPIC_API_KEY"):
+        print("  narrative: templated (model disabled/offline/unkeyed)")
+        return {}, False
+
+    from engine import narrative as narr
+    from sources import news as news_mod
+
+    section_numbers = _section_numbers(report)
+    articles = news_mod.fetch_articles()
+    bundles = narr.build_bundles(section_numbers, articles,
+                                 watchlist_tickers=cfg.get("watchlist") or [])
+    results, degraded, raw = narr.generate(
+        bundles,
+        model=narrative_cfg.get("model", "claude-sonnet-4-6"),
+        tolerance_pct=float(narrative_cfg.get("number_tolerance_pct", 0.05)),
+        templated_fallback=lambda sid: _section_template_line(report, sid),
+    )
+    runs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs")
+    narr.dump_run(results, raw, runs_dir=runs_dir, date_str=today.isoformat())
+    print(f"  narrative: model run, degraded={degraded}")
+    return results, degraded
+
+
+def _section_numbers(report) -> dict[str, dict[str, float]]:
+    """Per-section usable numbers for the model (only non-stale, present fields)."""
+    out: dict[str, dict[str, float]] = {}
+    for section, keys in _SECTION_METRICS.items():
+        nums = {k: report.fields[k].value for k in keys
+                if k in report.fields and report.fields[k].is_usable}
+        if nums:
+            out[section] = nums
+    return out
+
+
+def _section_template_line(report, section_id: str) -> str:
+    keys = _SECTION_METRICS.get(section_id, ())
+    for k in keys:
+        if k in report.fields:
+            return templated.templated_line(report.fields[k], change=None)
+    return f"{section_id}: no clear catalyst."
+
+
+def _brief_lines(report, narrative_results) -> dict[str, str]:
+    """Prefer model prose per section; fall back to per-metric templated lines."""
+    if narrative_results:
+        return {sid: res.prose for sid, res in narrative_results.items()}
+    return _templated_brief(report)
 
 
 def _render_templated_html(today: date, report, lines: dict[str, str]) -> str:
