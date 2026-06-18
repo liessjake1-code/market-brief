@@ -11,10 +11,12 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
-- **Current phase:** Phase 0 (test send) — manual run proven; awaiting ~2-3
-  mornings of scheduled cron firing to fully close the gate.
-- **Next phase to build:** Phase 1 (Safety net) — NOT started. Do not start until
-  the Phase 0 gate is fully met and the human gives the go-ahead.
+- **Current phase:** Phase 1 (Safety net) — BUILT, awaiting human verification on
+  Actions (trigger `smoke-test.yml`). Human accepted the 3 proven Phase 0
+  unknowns and gave the go-ahead to proceed (path (a)); cron-timing unknown (c)
+  will be confirmed during Phase 5's "several mornings" step instead.
+- **Next phase to build:** Phase 2 (State caching + first-run backfill) — NOT
+  started. Do not start until the Phase 1 gate is verified green on Actions.
 - **Repo:** https://github.com/liessjake1-code/market-brief (public, `main` branch).
 - **Local path:** /Users/jakeliess/market-brief
 - **Today's date at setup:** 2026-06-17
@@ -95,9 +97,51 @@ of secrets and whether they are set.
 
 ---
 
+## Phase 1 — Safety net (status: BUILT, awaiting Actions verification)
+
+### Files written (Track B)
+- Deleted Phase 0 throwaways `test_send.py` + `.github/workflows/test-send.yml`
+  and removed their (now obsolete) `.gitignore` entries.
+- Repo layout per spec 8.1: `sources/` (prices, fred, calendar, news),
+  `engine/` (state, diff, top_story, narrative), `render/` (charts,
+  template.html.j2), `runs/.gitkeep`, package `__init__.py` files. All `.py`
+  modules are docstring-only STUBS that name their implementing phase.
+- `requirements.txt`: RESOLVED, mutually-compatible pins locked against Python
+  3.12 via uv on 2026-06-17. Load-bearing: `yfinance==1.4.1`,
+  `anthropic==0.109.2`. Also pandas 3.0.3, requests 2.34.2, matplotlib 3.11.0,
+  feedparser 6.0.12, jinja2 3.1.6, python-dateutil 2.9.0.post0,
+  pandas-market-calendars 5.4.0, pyyaml 6.0.3, pytest 9.1.0.
+- `config.yaml`: spec 8.4 skeleton verbatim (number_tolerance_pct nested under
+  narrative; second_price_provider "stooq" provisional; watchlist []).
+- `brief.py`: argparse + `--no-send`. The no-state-on-no-send invariant is
+  structural: all state writes funnel through `_commit_state()`, a hard no-op
+  under `--no-send`. State logic itself is Phase 2.
+- `tests/test_no_send_invariant.py`: regression test proving `--no-send` writes
+  no `last_run.json` and never mutates an existing one. Passes locally.
+- `.github/workflows/smoke-test.yml`: workflow_dispatch only; checkout@v4,
+  setup-python@v5 (Python 3.12), pip install, `python brief.py --no-send`, pytest.
+
+### Verified locally (Track B)
+- `python brief.py --no-send` exits 0, writes no state file.
+- Both invariant tests pass; all packages import; `config.yaml` validates against
+  spec 8.4 with a real pyyaml parse on Python 3.12 (via uv).
+
+### Phase 1 gate (awaiting HUMAN)
+> `smoke-test.yml` builds without sending on Actions; `--no-send` writes no state.
+- Local half proven. Remaining: HUMAN triggers `smoke-test.yml` in the Actions
+  tab and confirms it runs green on the 3.12 runner. NOTE: local interpreter is
+  Python 3.14.6 (no 3.12 locally); pins were resolved against 3.12, which is what
+  the runner uses, so the runner is the real gate.
+
+---
+
 ## Next actions
 
 ### Human (Track A)
+- Verify Phase 1: trigger `smoke-test.yml` (Actions tab, "Run workflow"). Confirm
+  green. No secrets needed for the smoke test. Then give the Phase 2 go-ahead.
+
+### Human (Track A) — carried from Phase 0
 1. Let the cron fire over the next ~2-3 weekday mornings; confirm mail arrives near
    8:30 CT in the inbox with live-looking numbers.
 2. Record the runner-IP finding (block or no block) — decides whether the second

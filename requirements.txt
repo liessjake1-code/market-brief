@@ -1,0 +1,32 @@
+# =============================================================================
+# requirements.txt  —  Daily Market Brief
+# =============================================================================
+# Pins are RESOLVED, mutually compatible, and locked against Python 3.12 (the
+# GitHub Actions runner + spec §8.2 target). Resolved 2026-06-17 via uv.
+#
+# LOAD-BEARING PINS (spec §8.2 / §13): yfinance and anthropic. A silent upstream
+# break at send time is exactly the year-two failure §13 warns about, so these
+# are pinned as deliberately as everything else. The flip side: a pin freezes you
+# on a broken version when Yahoo or the SDK changes. QUARTERLY, run smoke-test.yml
+# against a fresh yfinance and bump these two deliberately. Pin-and-forget is how
+# this project dies silently.
+# =============================================================================
+
+# --- Load-bearing (bump deliberately, quarterly; see spec §13) ---
+yfinance==1.4.1
+anthropic==0.109.2
+
+# --- Data + compute ---
+pandas==3.0.3
+requests==2.34.2
+python-dateutil==2.9.0.post0
+pandas-market-calendars==5.4.0
+pyyaml==6.0.3
+
+# --- News + rendering ---
+feedparser==6.0.12
+jinja2==3.1.6
+matplotlib==3.11.0
+
+# --- Test (used from Phase 3 onward; pinned now so the lock set is resolved once) ---
+pytest==9.1.0
