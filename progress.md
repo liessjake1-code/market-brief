@@ -11,6 +11,43 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **JUN 18 PDF LOOK/DATA FIXES — DONE (2026-06-18), 292 tests green (+10).** Five
+  fixes the human flagged from the delivered "Morning Market Brief Jun 18" PDF. The
+  three look fixes were verified through the preview-loop screenshot before commit;
+  the two logic fixes were built TDD (RED -> GREEN).
+  1. STAT TABLES TOO WIDE: the `stat_table` macro was `width:100%`, stretching the
+     five columns across the full 640px so the numbers were small + far apart and the
+     right (Month) column clipped. Now `width:auto`, left-aligned, with a fixed
+     18px inter-column gap + a label gutter, so the table is compact and all four
+     change columns read tight together (render/template.html.j2 stat_table/stat_cell).
+  2. COMMODITIES LEGEND overlapped the rebased lines (they sit near the 100 baseline
+     early, right where the old `loc="upper left"` legend landed). Moved BELOW the
+     plot via `bbox_to_anchor=(0.5,-0.18)`, ncol=legs, clear of both the lines and the
+     date axis (render/charts.py commodities_normalized).
+  3. WATCHLIST SPARKLINES were one run-on row of uneven widths (each spark width =
+     its series length, so a 7-point IPO was tiny and a 22-point name huge). Now each
+     series is sampled to a FIXED 12-bar count and they STACK one ticker per row
+     (label + uniform spark), so all four render identically (template sparkline macro
+     + section_extras sparkline block).
+  4. EARNINGS MISMATCH: "What to Watch" listed earnings (ACN, KR) while "Earnings on
+     Deck" said "none flagged" — the body section had no grounding metric so it fell
+     to the SECTION_QUIET_LINE even when cal.earnings was populated. New
+     `brief._earnings_on_deck_line(cal)` builds the body line from the SAME
+     cal.earnings (pre-open preferred) and is injected into prose_by_section, so the
+     two paths agree; empty cal.earnings -> "" -> viewmodel keeps the honest quiet line.
+     (tests/test_earnings_reconcile.py, 4 tests.)
+  5. STALE QUIET LINES under POPULATED tables: Movers printed "No single-stock movers
+     flagged..." and Watchlist "Watchlist is empty..." under fully-populated per-stock
+     tables, because the prose still fell back to the quiet line with no model cause.
+     `build_sections` now suppresses the quiet line for movers/watchlist when a stock
+     table OR per-stock notes exist (the table+notes carry the section). Also new
+     `viewmodel.dedup_stock_notes` de-dups a ticker's "why" note across the two
+     sections (Movers preferred), so the SPCX article no longer prints twice.
+     (tests/test_quiet_line_suppression.py, 6 tests.)
+  Accuracy unchanged: every figure still Python-computed; the model writes none. NEXT
+  (Track A / go-live, unchanged): restore allow_repeat_send -> false; the next real
+  send proves the calendar earnings + per-stock fetch on the runner.
+
 - **PER-STOCK WATCHLIST/MOVERS FEATURE — DONE (2026-06-18), build/phases 2311c13,
   mirrored to main 9ad4ce5, 282 tests green (+48 over the session-start 234).**
   The deferred big chunk. Watchlist and Movers are now real per-stock sections, all

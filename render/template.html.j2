@@ -65,13 +65,19 @@
     <td style="font-family:{{ MONO }};font-size:11px;color:{{ color }};padding:3px 0 3px 8px;">{{ '%+.1f'|format(pct) }}%</td>
   </tr>
 {%- endmacro -%}
-{# Inline HTML sparkline: row of stacked cells from a series. #}
+{# Inline HTML sparkline: a fixed-width row of bars from a series. The series is
+   sampled down to a FIXED bar count so every sparkline is the same width
+   regardless of how many closes a ticker has (a 7-point IPO and a 22-point name
+   render identically), and each bar is a fixed width so they never tile run-on. #}
+{%- set SPARK_BARS = 12 -%}
 {%- macro sparkline(series, up) -%}
   {%- set lo = series|min -%}{%- set hi = series|max -%}{%- set rng = (hi - lo) or 1 -%}
   {%- set color = '#0b7a3d' if up else '#c0392b' -%}
+  {%- set n = series|length -%}
   <table role="presentation" cellpadding="0" cellspacing="0" style="height:22px;"><tr style="vertical-align:bottom;">
-    {%- for v in series -%}
-    {%- set h = (4 + (v - lo) / rng * 16) | round -%}
+    {%- for i in range(SPARK_BARS) -%}
+    {%- set idx = (i * (n - 1) // (SPARK_BARS - 1)) if n > 1 else 0 -%}
+    {%- set h = (4 + (series[idx] - lo) / rng * 16) | round -%}
     <td style="vertical-align:bottom;padding:0 1px;"><div style="width:4px;height:{{ h }}px;background:{{ color }};"></div></td>
     {%- endfor -%}
   </tr></table>
@@ -79,24 +85,28 @@
 {# Section stat table: a small session/week/month grid at the TOP of the section,
    before the prose (redesign "Visuals + macro"). Every figure is Python-computed,
    so it is 100% accurate; green/red carry direction only. Email-safe HTML table. #}
+{# Compact, LEFT-aligned stat table: auto width so it does NOT stretch the five
+   columns across the full 640px row (that made the numbers small + far apart and
+   clipped the right column). A fixed column gap keeps the figures tight together. #}
+{%- set STAT_GAP = "padding:4px 0 4px 18px;" -%}
 {%- macro stat_cell(c) -%}
   {%- set color = '#0b7a3d' if c.direction == 'up' else ('#c0392b' if c.direction == 'down' else '#8a877f') -%}
-  <td style="font-family:{{ MONO }};font-size:11px;color:{{ color }};padding:4px 0 4px 12px;text-align:right;white-space:nowrap;">{{ c.text }}</td>
+  <td style="font-family:{{ MONO }};font-size:11px;color:{{ color }};{{ STAT_GAP }}text-align:right;white-space:nowrap;">{{ c.text }}</td>
 {%- endmacro -%}
 {%- macro stat_table(rows) -%}
   {%- if rows -%}
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:2px 0 12px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:2px 0 12px 0;width:auto;">
     <tr style="border-bottom:1px solid #1b1a17;">
       <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 0;"></td>
-      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Level</td>
-      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Session</td>
-      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Week</td>
-      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Month</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 18px;text-align:right;">Level</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 18px;text-align:right;">Session</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 18px;text-align:right;">Week</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 18px;text-align:right;">Month</td>
     </tr>
     {%- for r in rows -%}
     <tr style="border-bottom:1px solid #E7E5E0;">
-      <td style="font-family:{{ SANS }};font-size:11px;color:#1b1a17;padding:4px 0;font-weight:600;">{{ r.label }}</td>
-      <td style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;padding:4px 0 4px 12px;text-align:right;white-space:nowrap;">{{ r.level }}</td>
+      <td style="font-family:{{ SANS }};font-size:11px;color:#1b1a17;padding:4px 22px 4px 0;font-weight:600;white-space:nowrap;">{{ r.label }}</td>
+      <td style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;{{ STAT_GAP }}text-align:right;white-space:nowrap;">{{ r.level }}</td>
       {{ stat_cell(r.session) }}{{ stat_cell(r.week) }}{{ stat_cell(r.month) }}
     </tr>
     {%- endfor -%}
@@ -173,9 +183,16 @@
   {% endif %}
   {% if section.favicons %}<div style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;padding-top:9px;">{{ tickers_text(section.favicons) }}</div>{% endif %}
   {% if section.sparklines %}
-  <table role="presentation" cellpadding="0" cellspacing="0" style="padding-top:8px;"><tr>
-    {% for s in section.sparklines %}<td style="padding:4px 14px 4px 0;font-family:{{ MONO }};font-size:11px;color:#1b1a17;">{{ s.ticker }}</td><td style="padding:4px 24px 4px 0;">{{ sparkline(s.series, s.up) }}</td>{% endfor %}
-  </tr></table>
+  {# One uniform row per ticker (label cell + fixed-width spark) so they stack
+     cleanly instead of tiling into one run-on row of uneven widths. #}
+  <table role="presentation" cellpadding="0" cellspacing="0" style="padding-top:8px;border-collapse:collapse;">
+    {% for s in section.sparklines %}
+    <tr>
+      <td style="padding:4px 16px 4px 0;font-family:{{ MONO }};font-size:11px;color:#1b1a17;width:54px;vertical-align:bottom;">{{ s.ticker }}</td>
+      <td style="padding:4px 0;vertical-align:bottom;">{{ sparkline(s.series, s.up) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
   {% endif %}
 {%- endmacro -%}
 <html>

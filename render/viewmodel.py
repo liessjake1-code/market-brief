@@ -444,6 +444,40 @@ def build_stock_notes(
     return tuple(notes)
 
 
+# Order in which a duplicated per-stock "why" note is kept: the FIRST section here
+# that carries the ticker wins; later sections drop it. Movers is the home of the
+# "why it moved" read, so a ticker that is both a mover and a watchlist name shows
+# its note once, under Movers (Jun 18: SPCX duplicated across both sections).
+_NOTE_DEDUP_PRIORITY: tuple[str, ...] = ("movers", "watchlist")
+
+
+def dedup_stock_notes(
+    stock_notes: dict[str, tuple[dict, ...]],
+) -> dict[str, tuple[dict, ...]]:
+    """Drop a ticker's per-stock 'why' note from all but its highest-priority section.
+
+    A ticker appearing in both Movers and Watchlist (same article) otherwise prints
+    the identical "why" line twice. We keep it once, under the higher-priority
+    section (Movers), and drop the duplicate from the other. Sections not in the
+    priority list pass through unchanged. Pure; returns a new dict (no mutation).
+    """
+    seen: set[str] = set()
+    out: dict[str, tuple[dict, ...]] = dict(stock_notes)
+    for section_id in _NOTE_DEDUP_PRIORITY:
+        notes = stock_notes.get(section_id)
+        if not notes:
+            continue
+        kept: list[dict] = []
+        for note in notes:
+            ticker = note.get("ticker")
+            if ticker in seen:
+                continue
+            seen.add(ticker)
+            kept.append(note)
+        out[section_id] = tuple(kept)
+    return out
+
+
 def build_stock_sparklines(
     tickers: list[str],
     quotes: dict[str, "object"],
@@ -529,11 +563,11 @@ def build_sections(
     stock_tables = stock_tables or {}
     stock_sparklines = stock_sparklines or {}
     stock_notes = stock_notes or {}
+    stock_notes = dedup_stock_notes(stock_notes)
     out: list[SectionView] = []
     for section_id in order:
         if section_id in _BODY_SKIP:
             continue
-        prose = prose_by_section.get(section_id) or SECTION_QUIET_LINE.get(section_id, "")
         favicons: tuple[dict, ...] = ()
         if section_id in ("movers", "watchlist"):
             favicons = _favicons_for(favicon_tickers.get(section_id, []))
@@ -546,6 +580,16 @@ def build_sections(
             stat_table = stock_tables[section_id]
         else:
             stat_table = stat_tables.get(section_id, ())
+        section_notes = stock_notes.get(section_id, ())
+        # Quiet line ONLY when the section is genuinely empty. A populated per-stock
+        # table or per-stock notes carries the section, so the stale "Watchlist is
+        # empty" / "No single-stock movers flagged" line is suppressed (Jun 18 bug:
+        # both printed under fully-populated tables).
+        has_stock_content = bool(stat_table) or bool(section_notes)
+        if section_id in ("movers", "watchlist") and has_stock_content:
+            prose = prose_by_section.get(section_id, "")
+        else:
+            prose = prose_by_section.get(section_id) or SECTION_QUIET_LINE.get(section_id, "")
         # Per-section stock sparklines take precedence; fall back to the legacy
         # watchlist-only `sparklines` arg (preview fixture + older callers).
         section_sparks = stock_sparklines.get(section_id, ())
@@ -567,6 +611,6 @@ def build_sections(
             chart_takeaway=chart.get("takeaway", ""),
             stat_table=stat_table,
             macro_strip=macro_strips.get(section_id, ()),
-            stock_notes=stock_notes.get(section_id, ()),
+            stock_notes=section_notes,
         ))
     return tuple(out)

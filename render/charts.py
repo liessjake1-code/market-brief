@@ -295,7 +295,10 @@ def commodities_normalized(
     _titled(ax, "Commodities, rebased to 100 (past month)",
             "Relative performance, daily close" + (f"  ·  {span}" if span else ""))
     ax.set_ylabel("Index (start = 100)", color=GREY, fontsize=8, **_CHART_FONT)
-    ax.legend(loc="upper left", fontsize=7, frameon=False, prop={"family": "monospace"})
+    # Legend BELOW the plot so it never overlaps the rebased lines (which sit near
+    # the 100 baseline early on, right where an upper-left legend would land).
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=len(drawn),
+              fontsize=7, frameon=False, prop={"family": "monospace"})
     fig.tight_layout()
 
     bits = [f"{label} {rebased[-1] - 100.0:+.1f}%" for label, rebased in drawn]
