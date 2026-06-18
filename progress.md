@@ -11,6 +11,42 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **LOOK FIXES FROM THE REAL-SEND SCREENSHOTS — DONE (2026-06-18), build/phases
+  af579a9, mirrored to main 75c1cb4, 234 tests green (+8).** The human had the
+  delivered email open in Outlook and shared screenshots. Three fixes shipped, each
+  verified through the preview-loop screenshot before commit:
+  1. MACRO BACKDROP STRIP (the em-dash rows): CPI YoY, PCE YoY, and Fed funds were
+     sitting in the per-section session/week/month CHANGE table showing perpetual em
+     dashes (they had only 1 stored data point) and would only ever show meaningless
+     ~0 daily deltas (these update monthly / at FOMC). Decision (human): take them OUT
+     of the change table and show them a different way. New `Metric.monthly` flag +
+     `is_monthly()` (engine/metrics.py); viewmodel `SECTION_STAT_METRICS` for
+     rates_and_dollar is now ONLY daily-trading series (ust10y, ust2y, dxy, hy_spread)
+     + the synthetic 2s10s spread row — all with real numbers. New `SECTION_MACRO_METRICS`
+     + `MacroReading` + `build_macro_strips()` render CPI/PCE/Fed funds as a compact
+     current-level strip ("CPI INFLATION (YOY) 4.17%  PCE ... 3.77%  FED FUNDS 3.63%")
+     under the rates table via a new `macro_strip` template macro. Copper stays in the
+     commodities change table (it trades daily). brief.py `_build_view` wires
+     `macro_strips`; preview_fixture.py exercises it.
+  2. CHART X-AXIS LABEL COLLISION ("Jun JuJu 18"): `charts._date_xaxis` rewritten to
+     pick evenly spaced ticks snapped to dated points and force a minimum index gap
+     (`_MIN_TICK_GAP`) so adjacent date labels never overlap. Both PNG charts now read
+     "May 21 - May 28 - Jun 3 - Jun 10" cleanly.
+  3. 10-YEAR LINE LOOKED LIKE A SAWTOOTH: `charts._pad_ylim` floor raised from 1% to
+     3% of level with a 2x headroom multiplier, so a near-flat real ~15 bps month sits
+     gently in the MIDDLE of the panel instead of filling it edge to edge. Still
+     truthful (the real peak/dip remain visible), just no longer magnified into noise.
+     Verified against a realistic jagged 4.42-4.58 fixture, not just the smooth ramp.
+  Accuracy unchanged: every figure still computed in Python; the model writes none.
+  New tests: monthly flag (test_macro_metrics), tick separation + no-dup final tick +
+  pad-ylim-calm (test_charts), rates table excludes monthly + macro strip readings/skip/
+  section wiring (test_viewmodel). NOTE on the em dashes the human saw: the OTHER em
+  dashes (copper session/week/month) are NOT a bug and were left as-is — copper has only
+  1 stored data point so far and self-heals as history accrues (session next run, week
+  ~5 sessions out, month ~21). Only the monthly series were restructured. NEXT: deferred
+  per-stock watchlist/movers feature; open chore: pin actions/checkout + setup-python off
+  Node 20 (cosmetic).
+
 - **REAL-SEND PROOF LANDED (2026-06-18):** A real send (commit 3c89da6 on main,
   state + runs/ dump committed) PROVED the three open unknowns at once, verified by
   reading the committed last_run.json + runs/2026-06-18.json:
