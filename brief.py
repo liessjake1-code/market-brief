@@ -462,6 +462,14 @@ def _build_view(
     forward_events = tuple({"time_label": e.time_label, "title": e.title} for e in cal.events)
     earnings = tuple({"ticker": e.ticker, "when": e.when} for e in cal.earnings if e.when == "bmo") \
         or tuple({"ticker": e.ticker, "when": e.when} for e in cal.earnings)
+
+    # "Earnings on Deck" body section is calendar-fed (the model writes no prose for
+    # it), so build its line from the SAME cal.earnings as the forward block above;
+    # otherwise it falls to the stale "none flagged" quiet line while What to Watch
+    # lists real names (the Jun 18 mismatch). Empty -> viewmodel keeps the quiet line.
+    earnings_line = _earnings_on_deck_line(cal)
+    if earnings_line:
+        prose_by_section = {**prose_by_section, "earnings_on_deck": earnings_line}
     # The degraded BANNER is reserved for stale CORE data or a failed model (spec §7.5).
     # The OPTIONAL "What to Watch" calendar is non-core: when it fails we show an honest
     # per-section note (calendar_note) instead of tripping the whole-brief banner.
@@ -758,6 +766,26 @@ def _earnings_summary(cal: calendar_mod.CalendarData) -> str:
     if cal.earnings:
         return ", ".join(e.ticker for e in cal.earnings[:5])
     return "None flagged before the open."
+
+
+def _earnings_on_deck_line(cal: calendar_mod.CalendarData) -> str:
+    """Body-section prose for "Earnings on Deck", reconciled with the forward block.
+
+    Reads the SAME cal.earnings the "What to Watch" forward block uses (pre-open
+    names preferred, else whatever is flagged), so the two never contradict each
+    other (the Jun 18 mismatch: forward listed ACN/KR while the body said "none
+    flagged"). Returns "" when nothing is flagged so the viewmodel keeps its honest
+    quiet line. Names only; never invents a number or a cause (spec §1, §2).
+    """
+    pre = [e.ticker for e in cal.earnings if e.when == "bmo"]
+    names = pre or [e.ticker for e in cal.earnings]
+    if not names:
+        return ""
+    listed = ", ".join(names[:6])
+    timing = "before the open" if pre else "on the calendar today"
+    if len(names) == 1:
+        return f"{listed} reports {timing}."
+    return f"{listed} report {timing}."
 
 
 def _bottom_line(degraded: bool, diff_line: str) -> str:
