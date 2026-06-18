@@ -11,6 +11,51 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **PER-STOCK WATCHLIST/MOVERS FEATURE — DONE (2026-06-18), build/phases 2311c13,
+  mirrored to main 9ad4ce5, 282 tests green (+48 over the session-start 234).**
+  The deferred big chunk. Watchlist and Movers are now real per-stock sections, all
+  numbers Python-computed (the model writes ZERO numbers, spec §1). Built TDD in 6
+  slices, each committed + pushed; the look slices verified via the preview-loop
+  screenshot before shipping. User decisions (all "recommended"): separate `stocks`
+  state namespace @ 10 closes; session/week/month windows (match other sections);
+  full per-stock model "why" now; compact per-stock "why" lines under the table.
+  What shipped:
+  1. STATE: new top-level `stocks` map in last_run.json, parallel to + kept apart
+     from `metrics` (engine/state.py: State.stocks + stock_history/_dates/_volume
+     accessors, _empty_stock, seed_stock_state, STOCK_HISTORY_KEEP=10, save trims in
+     lockstep). Backward compatible — an older file with no `stocks` key loads clean.
+  2. FETCH: sources/stocks.py — best-effort batch pull (closes, ISO dates, latest
+     volume) for arbitrary tickers, separate from the metric-keyed prices.py. A
+     failed/empty ticker is omitted; never raises, never trips the banner/hard floor
+     (core-metric/model only). Reuses prices._select_close MultiIndex handling +
+     a Volume analogue. Validated against live yfinance (NVDA/TSLA/QUBT real data).
+  3. MOVERS: engine/movers.py — pure spec §7 best-effort selection: watchlist-only by
+     default, upgrade to the curated universe only when the screen is RELIABLE (>=
+     half the configured universe returned), else degrade to watchlist-only rather
+     than print noise; movers_min_volume gates universe names (watchlist bypasses),
+     flat/uncomputable excluded, capped to MAX_MOVERS.
+  4. RENDER: stats.stock_stat_row (ticker-labeled %-change row); viewmodel
+     build_stock_table / build_movers_table / build_stock_sparklines / build_stock_notes;
+     build_sections gains stock_tables/stock_sparklines/stock_notes. Watchlist
+     sparklines are now REAL per-stock series for ALL tickers (SPCX/QUBT included),
+     fixing the old accident where only tickers doubling as core metrics drew one.
+  5. WHY: each surfaced ticker (watchlist + selected movers) is a "stock:<TICKER>"
+     pseudo-section folded into the SAME single narrative call, matched on ticker +
+     company name (from ticker_domains). Same validator path — a cause with any
+     number is rejected; a sourced cause resolves to a clickable citation; "no clear
+     catalyst" is accepted and the stock is then OMITTED from the notes (never a
+     fabricated reason, spec §2). Rendered as compact "TICKER reason (source)" lines
+     under the Movers/Watchlist table.
+  6. WIRING: brief._gather_stocks (offline -> {}), select_movers, _run_narrative folds
+     stock bundles, _build_view builds the tables/sparklines/notes, _commit_state
+     appends today's close/date/volume per pulled stock (seeding new tickers). No-send
+     no-state invariant covers stocks too. Real-data no-send build pulled 7/7 tickers
+     and rendered both tables + sparklines + why notes.
+  New files: sources/stocks.py, engine/movers.py, tests/test_stocks_state.py,
+  test_stocks_fetch.py, test_movers.py, test_stocks_view.py, test_stocks_narrative.py.
+  NEXT (Track A / go-live): restore allow_repeat_send -> false; watch scheduled
+  mornings; the next real send proves per-stock fetch + "why" on the runner.
+
 - **NODE 20 ACTIONS CHORE — DONE (2026-06-18), build/phases fe8b3d3, mirrored to
   main a782e07.** GitHub deprecated the Node 20 actions runtime; `actions/checkout@v4`
   and `actions/setup-python@v5` emitted a deprecation warning on every run and would
