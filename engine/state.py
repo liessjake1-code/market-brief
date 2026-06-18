@@ -34,6 +34,7 @@ from engine.metrics import METRIC_KEYS, is_yield
 
 SCHEMA_VERSION = 1
 STATE_FILENAME = "last_run.json"
+RUNS_DIRNAME = "runs"       # per-run structured JSON dumps, committed for auditing (§6.11)
 HISTORY_KEEP = 25            # ~25 closes: enough for 20-day high/low + streaks (Part 4.1)
 BACKFILL_MIN_DAYS = 20       # pull at least 20 trading days on first run (spec §5.5)
 STALE_TRADING_DAYS = 3       # older than this many trading days => stale (spec §5.5)
@@ -235,8 +236,9 @@ def commit_state_back(*, repo_root: Optional[str] = None) -> bool:
 
     root = repo_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     path = state_path(root)
-    if not os.path.exists(path):
-        print("  state-commit: skipped (no last_run.json to commit)")
+    runs_dir = os.path.join(root, RUNS_DIRNAME)
+    if not os.path.exists(path) and not os.path.isdir(runs_dir):
+        print("  state-commit: skipped (no last_run.json or runs/ to commit)")
         return False
 
     def run(*cmd: str) -> None:
@@ -244,15 +246,23 @@ def commit_state_back(*, repo_root: Optional[str] = None) -> bool:
 
     run("git", "config", "user.name", "market-brief-bot")
     run("git", "config", "user.email", "market-brief-bot@users.noreply.github.com")
-    # Only commit if the state file actually changed.
-    diff = subprocess.run(
-        ["git", "diff", "--quiet", "--", STATE_FILENAME], cwd=root
+    # Stage the state cache and any new per-run audit dumps under runs/. The
+    # runs/ JSON (spec §6.11) is what lets the model's output be audited after
+    # the fact, so it is committed alongside the state cache. Only stage paths
+    # that exist on disk; `git add` errors (exit 128) on a missing pathspec.
+    to_stage = [p for p in (STATE_FILENAME, RUNS_DIRNAME) if os.path.exists(os.path.join(root, p))]
+    if to_stage:
+        run("git", "add", *to_stage)
+    # Commit only if staging actually produced changes (a run can add a new
+    # runs/ dump even when last_run.json is byte-identical, e.g. the very first
+    # run before a state baseline exists).
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"], cwd=root
     )
-    if diff.returncode == 0:
-        print("  state-commit: no change to last_run.json")
+    if staged.returncode == 0:
+        print("  state-commit: no change to commit (state + runs/ unchanged)")
         return False
-    run("git", "add", STATE_FILENAME)
-    run("git", "commit", "-m", "chore: update last_run.json state cache [skip ci]")
+    run("git", "commit", "-m", "chore: update state cache + runs/ audit dump [skip ci]")
     run("git", "push")
-    print("  state-commit: pushed updated last_run.json")
+    print("  state-commit: pushed state cache + runs/ audit dump")
     return True

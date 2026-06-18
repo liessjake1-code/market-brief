@@ -155,3 +155,55 @@ def test_missing_metrics_object_raises(repo):
 def test_commit_back_skipped_off_actions(repo, monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     assert S.commit_state_back(repo_root=repo) is False
+
+
+# --- commit-back stages a runs/ dump even with no state baseline ----------- #
+def _init_git_repo(root: str) -> None:
+    import subprocess
+
+    def run(*cmd: str) -> None:
+        subprocess.run(cmd, cwd=root, check=True, capture_output=True)
+
+    run("git", "init", "-q")
+    # A bare remote so `git push` succeeds without a network.
+    remote = os.path.join(root, "_remote.git")
+    subprocess.run(["git", "init", "-q", "--bare", remote], check=True, capture_output=True)
+    run("git", "remote", "add", "origin", remote)
+    run("git", "config", "user.email", "seed@example.com")
+    run("git", "config", "user.name", "seed")
+    run("git", "commit", "-q", "--allow-empty", "-m", "seed")
+    run("git", "branch", "-M", "main")
+    run("git", "push", "-q", "-u", "origin", "main")
+
+
+def test_commit_back_commits_runs_dump_without_state_baseline(repo, monkeypatch):
+    """First-run scenario: a new runs/ dump exists but no last_run.json was ever
+    committed, so the state file is byte-identical to (absent in) the index. The
+    commit-back must still commit the audit dump rather than no-op."""
+    import subprocess
+
+    _init_git_repo(repo)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("STATE_COMMIT_PAT", "x")
+
+    runs_dir = os.path.join(repo, S.RUNS_DIRNAME)
+    os.makedirs(runs_dir, exist_ok=True)
+    with open(os.path.join(runs_dir, "2026-06-18.json"), "w") as fh:
+        json.dump({"degraded": True}, fh)
+
+    assert S.commit_state_back(repo_root=repo) is True
+    # The dump is now tracked in HEAD.
+    tracked = subprocess.run(
+        ["git", "ls-files", S.RUNS_DIRNAME], cwd=repo, capture_output=True, text=True
+    ).stdout
+    assert "2026-06-18.json" in tracked
+
+
+def test_commit_back_no_op_when_nothing_changed(repo, monkeypatch):
+    """Second-run scenario with no new dump and identical state: clean no-op."""
+    _init_git_repo(repo)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("STATE_COMMIT_PAT", "x")
+    # An empty runs/ dir exists (so the early-return doesn't fire) but nothing to stage.
+    os.makedirs(os.path.join(repo, S.RUNS_DIRNAME), exist_ok=True)
+    assert S.commit_state_back(repo_root=repo) is False
