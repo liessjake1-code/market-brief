@@ -56,16 +56,22 @@ def decide_send(
     send_window_end: str,
     last_sent_date: Optional[str],
     now: Optional[datetime] = None,
+    allow_repeat_send: bool = False,
 ) -> SendDecision:
     """Should this run send? (spec §8.3 cron guard + idempotency)
 
     Fires only when local Central time is inside the window and last_sent_date is
     not today. If it somehow fires after the window, still sends but flags `late`.
+
+    allow_repeat_send bypasses ONLY the once-per-day idempotency guard, for
+    iterating on test sends. It defaults to False (production behavior: one send
+    per day). RESTORE the default before go-live so the two DST crons + retries
+    cannot double-send. See config monitoring.allow_repeat_send.
     """
     ct = now_central(now)
     today_str = ct.date().isoformat()
 
-    if last_sent_date == today_str:
+    if last_sent_date == today_str and not allow_repeat_send:
         return SendDecision(False, "already sent today (idempotent)")
 
     lower, upper = window_bounds(send_time, send_window_end)

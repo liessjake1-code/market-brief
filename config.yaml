@@ -24,6 +24,10 @@ monitoring:
   heartbeat_cutoff: "10:00"        # local-time cutoff; if last_sent_date is not today by now on a trading day, alert
   heartbeat_channel: "github"      # "github" (workflow-failure notify, built in) or "telegram"
   # TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID live in GitHub Secrets if heartbeat_channel is "telegram"
+  allow_repeat_send: true          # TEMPORARY (2026-06-18): bypasses the once-per-day idempotency
+                                   # guard so we can iterate on test sends. The two DST crons + retries
+                                   # CAN double-send while this is true. SET BACK TO false before go-live
+                                   # once the brief looks/reads right. See engine/schedule.decide_send.
 
 narrative:
   enabled: true            # explanation engine (spec §5.6)
