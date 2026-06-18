@@ -123,7 +123,7 @@ def test_png_chart_referenced_inline_in_section():
 
 def test_inline_html_charts_render():
     html = html_render.render_brief(_fixture())
-    assert "Index daily change" in html  # the Top Story hbar block heading
+    assert "Index change, week" in html  # the Top Story hbar block heading
 
 
 def test_palette_discipline_white_the_tape():

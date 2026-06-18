@@ -50,6 +50,37 @@ of secrets and whether they are set.
   (a) the new look renders in Outlook, (b) the CID charts show (the broken-box fix),
   (c) favicons degrade to clean text not broken glyphs. allow_repeat_send is still
   true so a manual dispatch will actually send.
+- **POST-FIRST-SEND FIXES (2026-06-18, after human shared Outlook screenshots):**
+  The first real redesigned send rendered correctly in Outlook (white look, CID
+  charts NOT broken, favicon-as-text clean) but revealed three issues, now fixed
+  on build/phases (182 tests green, +10):
+  1. NARRATIVE DEGRADE (the banner + all-templated prose): the committed
+     runs/2026-06-18.json showed raw_model_output={"per_section": {<real sections>}}
+     — the model echoed the schema's literal "per_section" wrapper, so generate()
+     keyed parsed.get(section_id) to None for every section and fell back to
+     templates. FIX: narrative._unwrap_sections peels a per_section/sections/output
+     envelope before keying by section id, AND the system prompt now explicitly says
+     the top-level object is keyed BY SECTION ID, do not wrap in "per_section". This
+     turns the next real send from fully-templated into real model prose + citations.
+  2. WEEK/MONTH TIME-CONTEXT (human asked for past-week/month/etc): new
+     engine/context.py computes trailing week (5-session) + month (21-session) change
+     per metric from rolling history (bps for yields, pct otherwise). Surfaced three
+     ways: the computed fallback line ("...up 1.8% on the week and 4.0% on the
+     month..."), the At-a-Glance "why" tag (was a redundant "Higher on the session"),
+     and added to the model's per-section input numbers as {key}_week_change /
+     {key}_month_change so prose may cite them (validator accepts them, spec §6.2).
+     Scope = week + month only (we already keep ~25 closes; YTD/1yr would need a much
+     bigger committed state file — deferred).
+  3. CHARTS LOOKED WEIRD: (a) WTI was drawing the whole 25-session backfill (108->75,
+     a 34% span) labeled "1-month" — now clamped to the trailing 21 sessions so it
+     reads as a real month (95->75). (b) The inline index bars were near-flat daily
+     %-changes redundant with the glance — switched to WEEK %-change (heading "Index
+     change, week"). (c) Added charts._pad_ylim to stop matplotlib magnifying a tiny
+     real yield range into a sawtooth (the 10Y day-to-day noise over a month is real,
+     so it stays truthful; padding only kicks in when the range is below ~1% of level).
+  New files: engine/context.py, tests/test_context.py. NOTE: charts + real prose only
+  populate fully on a non-degraded run with committed history; the next real send is
+  where the human confirms the narrative un-degrade landed.
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test

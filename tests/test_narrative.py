@@ -234,6 +234,40 @@ def test_accepted_section_resolves_cited_source_to_title_and_url():
     assert results["crypto"].cited_sources == ()
 
 
+def test_per_section_envelope_is_unwrapped():
+    # The 2026-06-18 degrade: the model wrapped the real per-section output under a
+    # literal "per_section" key (echoing the schema), so every section keyed to None
+    # and the whole brief fell back to templates. We must peel that envelope.
+    def fake(system, user, model):
+        return json.dumps({"per_section": {
+            "rates_and_dollar": {
+                "prose": "The 10-year near 4.46%, up on soft auction demand.",
+                "cause_source_id": "cnbc-0", "confidence": "medium"},
+            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+                       "confidence": "low"},
+        }})
+    results, degraded, _ = N.generate(
+        _bundles(), model="m", tolerance_pct=0.05, caller=fake, templated_fallback=_fallback)
+    assert not degraded
+    assert not results["rates_and_dollar"].templated
+    assert results["rates_and_dollar"].cause_source_id == "cnbc-0"
+
+
+def test_flat_reply_still_accepted():
+    # A correctly flat reply (keyed by section id) is unchanged by the unwrap.
+    def fake(system, user, model):
+        return json.dumps({
+            "rates_and_dollar": {"prose": "The 10-year near 4.46%.",
+                                 "cause_source_id": None, "confidence": "low"},
+            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+                       "confidence": "low"},
+        })
+    results, degraded, _ = N.generate(
+        _bundles(), model="m", tolerance_pct=0.05, caller=fake, templated_fallback=_fallback)
+    assert not degraded
+    assert not results["rates_and_dollar"].templated
+
+
 def test_wsj_and_ft_feed_prefixes():
     # Redesign item 3: WSJ feeds (Dow Jones host) and FT map to stable prefixes so
     # their source_ids are findable in runs/ and citations.

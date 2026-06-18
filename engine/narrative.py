@@ -36,9 +36,11 @@ SYSTEM_PROMPT = (
     "3. First EXTRACT the explicit causal claims reporters made (quote the "
     "reporter's reason and its source_id), THEN write each section using only "
     "those extracted reasons plus the provided numbers.\n\n"
-    "Output strict JSON only, no prose outside the JSON, matching the schema given "
-    "in the user message. One entry per section. For quiet sections with no move "
-    "and no matched article, set confidence low and write one honest line."
+    "Output strict JSON only, no prose outside the JSON. The TOP-LEVEL object is "
+    "keyed BY SECTION ID (e.g. {\"us_equities\": {...}, \"commodities\": {...}}); each "
+    "value is one entry with the fields shown in the per_section schema. Do NOT wrap "
+    "the sections in a \"per_section\" key. One entry per section. For quiet sections "
+    "with no move and no matched article, set confidence low and write one honest line."
 )
 
 OUTPUT_SCHEMA = {
@@ -213,11 +215,33 @@ def generate(
     return results, degraded, parsed
 
 
+# The output schema in the prompt is shaped {"per_section": {<entry fields>}}, and
+# models routinely echo that literal wrapper: they return {"per_section": {section_id:
+# entry, ...}} instead of {section_id: entry, ...}. We expect the latter, so an
+# un-normalized reply keys to None for every section and the whole brief silently
+# degrades to templates (the failure behind the 2026-06-18 send). Peel a known
+# envelope key so a wrapped reply is accepted exactly like a flat one.
+_ENVELOPE_KEYS = ("per_section", "sections", "output")
+
+
+def _unwrap_sections(data: dict) -> dict:
+    """Peel a per_section/sections envelope so entries key by section id.
+
+    Only unwraps when the sole top-level key is a known envelope wrapping a dict;
+    a reply already keyed by section id is returned unchanged.
+    """
+    for key in _ENVELOPE_KEYS:
+        inner = data.get(key)
+        if isinstance(inner, dict) and len(data) == 1:
+            return inner
+    return data
+
+
 def _try_call(call: ModelCaller, bundles: list[SectionBundle], model: str) -> Optional[dict]:
     try:
         raw = call(SYSTEM_PROMPT, _user_message(bundles), model)
         data = json.loads(raw)
-        return data if isinstance(data, dict) else None
+        return _unwrap_sections(data) if isinstance(data, dict) else None
     except Exception as exc:
         # Never raise (the brief ships regardless, spec §5.6), but DO surface the
         # cause: a silently degrading model is the failure mode the spec warns is

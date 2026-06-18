@@ -176,11 +176,30 @@ def _run_narrative(cfg, report, today):
 
 
 def _section_numbers(report) -> dict[str, dict[str, float]]:
-    """Per-section usable numbers for the model (only non-stale, present fields)."""
+    """Per-section usable numbers for the model, with derived week/month figures.
+
+    The model may only state numbers in this set (spec §1, §6.2), so we compute
+    everything it is allowed to say: the current value plus the trailing week and
+    month change per metric, from rolling history. The number validator then
+    accepts "up about 1.8% on the week" because 1.8 is a supplied input. Derived
+    figures are added under suffixed keys so they are present but unobtrusive.
+    """
+    from engine import context as ctx_mod
+
+    history = _state_history()
     out: dict[str, dict[str, float]] = {}
     for section, keys in _SECTION_METRICS.items():
-        nums = {k: report.fields[k].value for k in keys
-                if k in report.fields and report.fields[k].is_usable}
+        nums: dict[str, float] = {}
+        for k in keys:
+            field = report.fields.get(k)
+            if not (field and field.is_usable):
+                continue
+            nums[k] = field.value
+            ctx = ctx_mod.time_context(history.get(k, []), k)
+            if ctx.week_change is not None:
+                nums[f"{k}_week_change"] = round(ctx.week_change, 2)
+            if ctx.month_change is not None:
+                nums[f"{k}_month_change"] = round(ctx.month_change, 2)
         if nums:
             out[section] = nums
     return out
@@ -371,9 +390,25 @@ _GLANCE_TAG_KEY: dict[str, str] = {
 
 
 def _glance_tag(section_id: str, history: dict[str, list[float]], directions: dict[str, str]) -> str:
-    """A 3-5 word direction tag for the glance row (structure fix #4)."""
+    """A short glance tag carrying the week/month context (structure fix #4).
+
+    The session move is already visible in the figure color, so the tag adds the
+    trailing context instead of repeating it: e.g. "Up 1.8% on the week". Falls
+    back to a plain session direction when no window is computable.
+    """
+    from engine import context as ctx_mod
+
     key = _GLANCE_TAG_KEY.get(section_id)
-    direction = directions.get(key) if key else None
+    if not key:
+        return "Quiet"
+    ctx = ctx_mod.time_context(history.get(key, []), key)
+    clause = ctx_mod.context_clause(ctx, key)
+    if clause:
+        # clause looks like ", up 1.8% on the week and 4.0% on the month"; trim the
+        # leading comma+space and capitalize for a tidy tag.
+        tag = clause[2:]
+        return tag[0].upper() + tag[1:]
+    direction = directions.get(key)
     if direction == "up":
         return "Higher on the session"
     if direction == "down":
@@ -463,12 +498,24 @@ def _state_history() -> dict[str, list[float]]:
 
 
 def _index_changes(history: dict[str, list[float]]) -> dict[str, float]:
-    """Per-index daily %-change from settled history, for the index bar chart."""
+    """Per-index WEEK %-change for the inline index bars.
+
+    Week rather than daily: the daily move is already in the At-a-Glance figures
+    and was near-flat in early sends, so daily bars were redundant and low-signal.
+    The week view shows how the indices are tracking over the week (the new time
+    context), which the glance does not. Falls back to the daily change when a full
+    week of history is not yet available.
+    """
+    from engine import context as ctx_mod
+
     labels = {"sp500": "S&P 500", "nasdaq": "Nasdaq", "dow": "Dow", "russell": "Russell"}
     out: dict[str, float] = {}
     for key, label in labels.items():
         hist = history.get(key, [])
-        if len(hist) >= 2 and hist[-2]:
+        ctx = ctx_mod.time_context(hist, key)
+        if ctx.week_change is not None:
+            out[label] = ctx.week_change
+        elif len(hist) >= 2 and hist[-2]:
             out[label] = (hist[-1] - hist[-2]) / hist[-2] * 100.0
     return out
 
