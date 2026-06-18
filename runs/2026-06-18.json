@@ -3,7 +3,7 @@
   "sections": {
     "us_equities": {
       "section_id": "us_equities",
-      "prose": "S&P 500 at 7,498, higher about 0.1% on the session, closing higher for the 3rd straight session. No clear catalyst flagged. Watch whether breadth confirms the move or it stays top-heavy.",
+      "prose": "S&P 500 at 7,494, little changed on the session, down 0.2% on the week and up 0.3% on the month, closing higher for the 4th straight session. No clear catalyst flagged. Watch whether breadth confirms the move or it stays top-heavy.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -11,7 +11,7 @@
     },
     "rates_and_dollar": {
       "section_id": "rates_and_dollar",
-      "prose": "10-year Treasury at 4.43%, little changed on the session, inside its recent range. No clear catalyst flagged. The long end is the swing factor into the next data print.",
+      "prose": "10-year Treasury at 4.43%, little changed on the session, down 5 bps on the week and down 14 bps on the month, inside its recent range. No clear catalyst flagged. The long end is the swing factor into the next data print.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -19,7 +19,7 @@
     },
     "commodities": {
       "section_id": "commodities",
-      "prose": "WTI crude at 75.05, higher about 0.2% on the session, inside its recent range. No clear catalyst flagged. Watch the inventory and demand reads for the next leg.",
+      "prose": "WTI crude at 75.80, higher about 1.4% on the session, down 1.3% on the week and down 22.3% on the month, closing higher for the 3rd straight session. No clear catalyst flagged. Watch the inventory and demand reads for the next leg.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -27,7 +27,7 @@
     },
     "crypto": {
       "section_id": "crypto",
-      "prose": "Bitcoin at 62,800, higher about 0.2% on the session, inside its recent range. No clear catalyst flagged. Risk appetite here tends to track the broader tape.",
+      "prose": "Bitcoin at 62,679, higher about 0.3% on the session, down 5.3% on the week and down 14.9% on the month, inside its recent range. No clear catalyst flagged. Risk appetite here tends to track the broader tape.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -35,60 +35,12 @@
     },
     "volatility_breadth": {
       "section_id": "volatility_breadth",
-      "prose": "VIX at 16.75, lower about 1.2% on the session, inside its recent range. No clear catalyst flagged. A low VIX leaves little hedging cushion if data surprises.",
+      "prose": "VIX at 16.76, lower about 1.4% on the session, up 2.1% on the week and up 1.0% on the month, inside its recent range. No clear catalyst flagged. A low VIX leaves little hedging cushion if data surprises.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
       "cited_sources": []
     }
   },
-  "raw_model_output": {
-    "per_section": {
-      "us_equities": {
-        "level": "S&P 500 about 7498, Nasdaq about 26437, Dow about 51638, Russell 2000 about 2967",
-        "change": "Broad rally across all major indices",
-        "context": "All four indices advanced together, with the Russell 2000 participating alongside mega-cap benchmarks, suggesting broad risk-on breadth rather than a narrow tech-driven move.",
-        "cause": "U.S. stocks rebounded after the U.S. and Iran signed an interim pact to wind down the war.",
-        "cause_source_id": "wsj-23",
-        "confidence": "high",
-        "prose": "Stocks rallied broadly on Wednesday after the U.S. and Iran signed an interim agreement to wind down the war (wsj-23). The S&P 500 climbed to about 7498, the Nasdaq to about 26437, and the Dow to about 51638. Notably, the Russell 2000 rose to about 2967 alongside the large-cap benchmarks, a sign of genuine breadth rather than a narrow mega-cap lift — consistent with a macro relief trade rather than a rotation into growth names alone."
-      },
-      "rates_and_dollar": {
-        "level": "10-year Treasury yield about 4.43%, 2-year about 4.05%, DXY about 100.80",
-        "change": "Yields slipped modestly; dollar near recent highs",
-        "context": "The 2s10s spread sits at roughly 38 basis points, a modestly positive curve. The dollar index holds above 100.",
-        "cause": "Treasury yields moved slightly lower as markets continued to adjust to Kevin Warsh's first meeting as the new Fed chairman, while the dollar had earlier risen on the Fed's unanimous decision to hold rates.",
-        "cause_source_id": "wsj-17",
-        "confidence": "high",
-        "prose": "The 10-year Treasury yield eased to about 4.43% and the 2-year to about 4.05% as markets continued to digest Kevin Warsh's debut FOMC meeting, with yields slipping slightly in the aftermath (wsj-17). The Fed held rates in a unanimous decision, which had initially lifted the dollar (wsj-39); the DXY sits at about 100.80. The 2s10s spread of roughly 38 basis points reflects a modestly upward-sloping curve, signaling no acute recession pricing at this stage."
-      },
-      "commodities": {
-        "level": "WTI crude about 75 dollars, Gold about 4249 dollars",
-        "change": "Oil fell sharply; gold elevated",
-        "context": "WTI dropped roughly 1.8% on the session. Gold remains at historically high levels above 4200 dollars.",
-        "cause": "Oil prices fell after Trump signed a deal to reopen the Strait of Hormuz, with front-month WTI dropping about 1.8% in afternoon European trading; separately, three Saudi tankers carrying 6 million barrels crossed the Strait after hiding their location for more than two months.",
-        "cause_source_id": "wsj-19",
-        "confidence": "high",
-        "prose": "WTI crude slid to about 75 dollars, falling roughly 1.8% after Trump signed a deal to reopen the Strait of Hormuz (wsj-19). The physical signal reinforced the price move: three Saudi tankers carrying 6 million barrels crossed the Strait on Thursday after switching their transponders back on following more than two months of location blackouts (cnbc-4). The IEA has warned that a lasting resolution could trigger a major supply overhang next year, though the OPEC chief dismissed that forecast (cnbc-5). Gold, meanwhile, holds at about 4249 dollars — no clear catalyst for today's level from the supplied articles, but the elevated price reflects persistent demand for real-asset hedges even as geopolitical risk partially eases."
-      },
-      "crypto": {
-        "level": "BTC about 62800 dollars, ETH about 1683 dollars",
-        "change": "No significant directional move identified in supplied data",
-        "context": "BTC sits near 62800 and ETH near 1683. The Federal Reserve proposed new customer identification requirements for payment stablecoin issuers, which could affect the broader crypto regulatory backdrop.",
-        "cause": "The Federal Reserve requested comment on a proposal to require certain payment stablecoin issuers to maintain an effective customer identification program.",
-        "cause_source_id": "fed-1",
-        "confidence": "low",
-        "prose": "BTC trades at about 62800 dollars and ETH at about 1683 dollars. No clear catalyst for directional price moves in crypto emerges from the supplied articles. The Federal Reserve did open a comment period on a proposal requiring payment stablecoin issuers to maintain customer identification programs (fed-1), a regulatory development worth watching for stablecoin-adjacent assets, but its near-term price impact on BTC or ETH is not established by the available reporting."
-      },
-      "volatility_breadth": {
-        "level": "VIX about 16.75",
-        "change": "Low and stable",
-        "context": "A VIX below 17 indicates limited hedging demand and market complacency relative to historical averages.",
-        "cause": "No clear catalyst",
-        "cause_source_id": null,
-        "confidence": "low",
-        "prose": "The VIX sits at about 16.75, a low reading that signals minimal hedging demand and broad market calm. No supplied articles speak directly to volatility dynamics today. The level is consistent with the geopolitical relief trade visible in equities and oil, but no article explicitly ties the VIX move to a specific cause."
-      }
-    }
-  }
+  "raw_model_output": null
 }
