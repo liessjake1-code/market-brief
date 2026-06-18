@@ -50,6 +50,32 @@ def build_view():
         {"SPCX": [3, 4, 4, 5, 6, 6, 7], "NVDA": [5, 5, 6, 6, 7, 8, 9]}
     )
 
+    # Realistic histories so the section stat tables compute real session/week/month
+    # changes (most-recent-last, ~22 sessions for a full month window).
+    def ramp(start, step, n=22, jitter=0.0):
+        out = []
+        v = start
+        for i in range(n):
+            v = v + step + (jitter if i % 2 == 0 else -jitter)
+            out.append(round(v, 4))
+        return out
+
+    histories = {
+        "sp500": ramp(6180, 11.5), "nasdaq": ramp(20200, 39), "dow": ramp(44400, -9),
+        "russell": ramp(2360, -2.0), "wti": ramp(80.0, -0.30, jitter=0.6),
+        "gold": ramp(4010, 11), "copper": ramp(4.35, 0.012, jitter=0.02),
+        "dxy": ramp(99.6, 0.055), "ust10y": ramp(4.30, 0.006, jitter=0.01),
+        "ust2y": ramp(4.06, -0.0005, jitter=0.008), "btc": ramp(60800, 84),
+        "eth": ramp(1720, -1.5), "vix": ramp(18.6, -0.08, jitter=0.2),
+        "fed_funds": [5.33] * 22, "cpi_yoy": [3.4] * 18 + [3.2] * 4,
+        "pce_yoy": [2.8] * 18 + [2.7] * 4, "hy_spread": ramp(3.20, -0.007, jitter=0.01),
+    }
+    values = {k: v[-1] for k, v in histories.items()}
+    stat_tables = vm.build_stat_tables(values, histories)
+
+    # NOTE: the prose + chart_takeaway strings below are DEMO fixture data only,
+    # hand-written for a realistic preview. In production every figure is computed
+    # in Python (engine.stats / render.charts takeaways); the model writes no number.
     def section(sid, prose, top=False, favicons=(), sources=(), chart=None):
         return vm.SectionView(
             section_id=sid, title=vm.SECTION_TITLES[sid], prose=prose,
@@ -59,6 +85,8 @@ def build_view():
             chart_cid=(chart or {}).get("cid"),
             chart_caption=(chart or {}).get("caption", ""),
             chart_caption_url=(chart or {}).get("caption_url", ""),
+            chart_takeaway=(chart or {}).get("takeaway", ""),
+            stat_table=stat_tables.get(sid, ()),
         )
 
     movers_fav = (
@@ -86,15 +114,19 @@ def build_view():
                 "auction drew weak demand (Bloomberg). The 2s10s steepened to +38 bps. Higher "
                 "long-end yields are the headwind small caps just felt; the dollar firmed to 100.8.",
                 sources=({"label": "Bloomberg: 20-year auction draws weak demand",
-                          "url": "https://www.bloomberg.com/markets/rates-bonds"},)),
+                          "url": "https://www.bloomberg.com/markets/rates-bonds"},),
+                chart={"cid": "chart_rates", "caption": "Source: FRED (DGS10)",
+                       "caption_url": "https://fred.stlouisfed.org/series/DGS10",
+                       "takeaway": "The 10-year sits at 4.43%, up 7 bps on the week and near the top of its past-month range, so the long end remains the swing factor into the next data print."}),
         section("commodities",
                 "WTI eased to $74.05, down about 2% on the week as builds outweighed the "
                 "geopolitical bid; gold pushed to a record $4,247 on the same rate-cut hopes. "
                 "Softer oil takes some pressure off the inflation read the Fed watches.",
                 sources=({"label": "Reuters: Oil slips on US crude build",
                           "url": "https://www.reuters.com/business/energy/"},),
-                chart={"cid": "chart_oil", "caption": "Source: Yahoo Finance (CL=F)",
-                       "caption_url": "https://finance.yahoo.com/chart/CL=F"}),
+                chart={"cid": "chart_commodities", "caption": "Source: Yahoo Finance (CL=F, GC=F, HG=F)",
+                       "caption_url": "https://finance.yahoo.com/chart/CL=F",
+                       "takeaway": "Rebased to 100 a month ago, gold leads (+3.1%) while WTI lags (-6.0%) and copper is roughly flat, a defensive-metals tilt rather than a broad commodity bid."}),
         section("washington", "No market-moving policy news flagged this morning. The shutdown "
                 "deadline is three weeks out and tariff headlines were quiet. No clear catalyst "
                 "flagged. The long end is the swing factor into the next data print."),
@@ -158,16 +190,34 @@ def main():
 
 
 def _inline_demo_chart(html: str) -> str:
+    """Render the real new charts and inline them as data-URIs for browser preview.
+
+    cid: URLs only resolve in an email client, so for a headless-Chrome screenshot
+    we render the actual rates + commodities charts and swap the cid refs.
+    """
     import base64
     try:
         from render import charts
-        series = [93.89, 89.0, 88.9, 87.6, 92.1, 94.2, 96.2, 93.1, 91.0, 91.9,
-                  88.2, 90.1, 86.0, 84.5, 80.0, 76.1, 76.9, 73.9, 74.05, 75.05]
         dates = [f"2026-05-{d:02d}" for d in range(20, 32)] + \
-                [f"2026-06-{d:02d}" for d in range(1, 9)]
-        chart = charts.wti_trend(series, dates=dates[:len(series)])
-        b64 = base64.b64encode(chart.png).decode()
-        return html.replace("cid:chart_oil", f"data:image/png;base64,{b64}")
+                [f"2026-06-{d:02d}" for d in range(1, 11)]
+
+        ten = [4.30 + 0.006 * i + (0.012 if i % 2 else -0.012) for i in range(22)]
+        rates = charts.ten_year_trend(ten_year_history=ten, ten_year_dates=dates[:22])
+
+        wti = [80.0 - 0.30 * i + (0.6 if i % 2 else -0.6) for i in range(22)]
+        gold = [4010 + 11 * i for i in range(22)]
+        copper = [4.35 + 0.012 * i + (0.02 if i % 2 else -0.02) for i in range(22)]
+        commodities = charts.commodities_normalized(
+            {"wti": wti, "gold": gold, "copper": copper},
+            dates={k: dates[:22] for k in ("wti", "gold", "copper")},
+        )
+
+        for cid, chart in (("chart_rates", rates), ("chart_commodities", commodities)):
+            if chart is None:
+                continue
+            b64 = base64.b64encode(chart.png).decode()
+            html = html.replace(f"cid:{cid}", f"data:image/png;base64,{b64}")
+        return html
     except Exception as exc:  # preview is best-effort
         print("  (chart inline skipped:", exc, ")")
         return html

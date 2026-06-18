@@ -35,6 +35,12 @@ def _fixture(*, degraded: bool = False) -> vm.BriefView:
         vm.SectionView(
             "commodities", "Commodities", "Oil eased on a build.",
             chart_cid="chart_oil", chart_caption="yfinance CL=F", chart_caption_url="https://yhoo/CL=F",
+            chart_takeaway="WTI lags, gold leads over the month.",
+            stat_table=vm.build_stat_tables(
+                {"wti": 74.0, "gold": 4247.0, "copper": 4.4},
+                {"wti": [75.0, 74.5, 74.0], "gold": [4200.0, 4220.0, 4247.0],
+                 "copper": [4.3, 4.35, 4.4]},
+            )["commodities"],
         ),
         vm.SectionView(
             "movers", "Movers", "NVDA led the tape.",
@@ -124,6 +130,20 @@ def test_png_chart_referenced_inline_in_section():
 def test_inline_html_charts_render():
     html = html_render.render_brief(_fixture())
     assert "Index change, week" in html  # the Top Story hbar block heading
+
+
+def test_section_stat_table_renders():
+    html = html_render.render_brief(_fixture())
+    # The stat-table column headers appear (session/week/month grid).
+    assert "Session" in html and "Week" in html and "Month" in html
+    assert "WTI crude" in html  # a commodity row label
+    assert "4.40" in html or "4.4" in html  # copper level formatted
+
+
+def test_chart_takeaway_renders():
+    html = html_render.render_brief(_fixture())
+    assert "What this tells you" in html
+    assert "WTI lags, gold leads over the month." in html
 
 
 def test_palette_discipline_white_the_tape():

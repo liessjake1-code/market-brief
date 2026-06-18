@@ -12,6 +12,7 @@ key or the service is unavailable (the caller decides what that means per metric
 
 from __future__ import annotations
 
+import inspect
 import os
 from typing import Callable, Optional
 
@@ -55,11 +56,16 @@ def fetch_release_dates(realtime_start: str, realtime_end: str) -> list[dict]:
     return [r for r in rows if isinstance(r, dict)]
 
 
-def _fetch_series(series_id: str, limit: int) -> list[tuple[str, float]]:
+def _fetch_series(
+    series_id: str, limit: int, *, units: Optional[str] = None
+) -> list[tuple[str, float]]:
     """Pull the last `limit` non-missing observations for a FRED series.
 
-    Returns oldest->newest. Raises on HTTP error so the caller can degrade; never
-    returns a partial/garbage value silently.
+    `units` applies a FRED-side transform (e.g. "pc1" = percent change from a year
+    ago), so a YoY inflation rate comes back already computed by FRED — no manual
+    math, so the value stays 100% accurate by construction (spec §1). Returns
+    oldest->newest. Raises on HTTP error so the caller can degrade; never returns
+    a partial/garbage value silently.
     """
     api_key = os.environ.get("FRED_API_KEY")
     if not api_key:
@@ -71,6 +77,8 @@ def _fetch_series(series_id: str, limit: int) -> list[tuple[str, float]]:
         "sort_order": "desc",
         "limit": limit,
     }
+    if units:
+        params["units"] = units
     resp = requests.get(FRED_BASE, params=params, timeout=REQUEST_TIMEOUT)
     resp.raise_for_status()
     obs = resp.json().get("observations", [])
@@ -87,15 +95,38 @@ def _fetch_series(series_id: str, limit: int) -> list[tuple[str, float]]:
     return out
 
 
+def _call_fetcher(fetch: SeriesFetcher, series_id: str, n: int, units: Optional[str]):
+    """Invoke a fetcher, passing `units` only when it accepts the keyword.
+
+    The real `_fetch_series` takes a keyword-only `units`; injected test fetchers
+    are often plain 2-arg callables. We inspect the signature rather than catching
+    TypeError, because a TypeError raised INSIDE the fetcher body would otherwise
+    trigger a silent retry WITHOUT `units` — and for an inflation series that means
+    storing the raw CPI index (~320) instead of the YoY rate (~3.2), i.e. a wrong
+    number in the brief. The accuracy invariant (spec §1) forbids that, so we never
+    drop a requested transform silently.
+    """
+    if not units:
+        return fetch(series_id, n)
+    try:
+        accepts_units = "units" in inspect.signature(fetch).parameters
+    except (TypeError, ValueError):
+        accepts_units = False
+    if accepts_units:
+        return fetch(series_id, n, units=units)  # type: ignore[call-arg]
+    return fetch(series_id, n)
+
+
 def latest_value(
     series_id: str,
     *,
     fetcher: Optional[SeriesFetcher] = None,
+    units: Optional[str] = None,
 ) -> Optional[tuple[str, float]]:
     """(date_str, value) of the most recent observation, or None on any failure."""
     fetch = fetcher or _fetch_series
     try:
-        obs = fetch(series_id, 5)
+        obs = _call_fetcher(fetch, series_id, 5, units)
     except Exception:
         return None
     return obs[-1] if obs else None
@@ -106,6 +137,7 @@ def history(
     days: int,
     *,
     fetcher: Optional[SeriesFetcher] = None,
+    units: Optional[str] = None,
 ) -> list[float]:
     """Recent daily values oldest->newest for seeding rolling history (spec §5.5).
 
@@ -114,7 +146,7 @@ def history(
     """
     fetch = fetcher or _fetch_series
     try:
-        obs = fetch(series_id, days)
+        obs = _call_fetcher(fetch, series_id, days, units)
     except Exception:
         return []
     return [v for _, v in obs]

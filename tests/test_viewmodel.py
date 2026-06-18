@@ -106,8 +106,52 @@ def test_build_hbars_shares_one_scale():
 
 
 def test_section_charts_attach_by_section():
-    charts = {"commodities": {"cid": "chart_oil", "caption": "yfinance CL=F", "caption_url": "https://x"}}
+    charts = {"commodities": {"cid": "chart_oil", "caption": "yfinance CL=F",
+                              "caption_url": "https://x", "takeaway": "Oil eased."}}
     sections = vm.build_sections(["commodities"], {}, top_story_id="us_equities",
                                  section_charts=charts)
     assert sections[0].chart_cid == "chart_oil"
     assert sections[0].chart_caption == "yfinance CL=F"
+    assert sections[0].chart_takeaway == "Oil eased."
+
+
+def _ramp(n, start, step):
+    return [round(start + step * i, 4) for i in range(n)]
+
+
+def test_build_stat_tables_per_section():
+    values = {"sp500": 6431.0, "nasdaq": 21054.0, "dow": 44210.0, "russell": 2318.0}
+    histories = {k: _ramp(22, v - 100, 5) for k, v in values.items()}
+    tables = vm.build_stat_tables(values, histories)
+    eq = tables["us_equities"]
+    assert len(eq) == 4
+    labels = [r.label for r in eq]
+    assert "S&P 500" in labels
+    # Each row carries a session/week/month cell.
+    assert eq[0].session is not None and eq[0].week is not None and eq[0].month is not None
+
+
+def test_rates_table_includes_spread_row():
+    values = {"ust10y": 4.43, "ust2y": 4.05, "dxy": 100.8}
+    histories = {
+        "ust10y": _ramp(22, 4.20, 0.01),
+        "ust2y": _ramp(22, 4.00, 0.002),
+        "dxy": _ramp(22, 99.5, 0.06),
+    }
+    tables = vm.build_stat_tables(values, histories)
+    labels = [r.label for r in tables["rates_and_dollar"]]
+    assert "2s10s spread" in labels
+    # Spread row sits after the two yields, before DXY.
+    assert labels.index("2s10s spread") < labels.index("US Dollar Index")
+    spread_row = next(r for r in tables["rates_and_dollar"] if r.label == "2s10s spread")
+    assert "bps" in spread_row.level
+
+
+def test_stat_table_renders_in_section(tmp_path):
+    # The stat table reaches the SectionView and is exposed for the template.
+    values = {"wti": 74.0, "gold": 4247.0, "copper": 4.4}
+    histories = {k: _ramp(22, v - 5, 0.2) for k, v in values.items()}
+    tables = vm.build_stat_tables(values, histories)
+    sections = vm.build_sections(["commodities"], {}, top_story_id="us_equities",
+                                 stat_tables=tables)
+    assert len(sections[0].stat_table) == 3  # WTI, Gold, Copper

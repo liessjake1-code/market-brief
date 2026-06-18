@@ -15,9 +15,10 @@ from typing import Optional
 @dataclass(frozen=True)
 class SymbolMap:
     metric: str
-    yf: str                      # yfinance cash/index symbol (settled recap)
+    yf: Optional[str] = None     # yfinance cash/index symbol (None for FRED-only macro)
     yf_future: Optional[str] = None   # yfinance futures symbol (pre-market, Phase 7)
     fred: Optional[str] = None        # FRED series (primary for yields, cross-check for oil)
+    fred_units: Optional[str] = None  # FRED units transform, e.g. "pc1" (YoY % change)
 
 
 # Per spec §7 symbol table. Core fields for the health check are the four
@@ -35,6 +36,14 @@ SYMBOLS: tuple[SymbolMap, ...] = (
     SymbolMap("ust2y", "^TNX", fred="DGS2"),            # FRED primary; yfinance has no clean 2y
     SymbolMap("btc", "BTC-USD"),
     SymbolMap("eth", "ETH-USD"),
+    # --- Macro additions (all optional) -------------------------------------- #
+    SymbolMap("copper", "HG=F"),                        # yfinance front-month copper future
+    # Inflation as a RATE, not the index level: FRED's pc1 units transform returns
+    # year-over-year percent change directly, so no manual YoY math (accuracy-safe).
+    SymbolMap("cpi_yoy", fred="CPIAUCSL", fred_units="pc1"),
+    SymbolMap("pce_yoy", fred="PCEPI", fred_units="pc1"),
+    SymbolMap("fed_funds", fred="DFF"),                 # effective fed funds rate, daily
+    SymbolMap("hy_spread", fred="BAMLH0A0HYM2"),        # ICE BofA US HY OAS (credit stress)
 )
 
 SYMBOLS_BY_METRIC: dict[str, SymbolMap] = {s.metric: s for s in SYMBOLS}

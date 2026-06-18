@@ -281,8 +281,10 @@ def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narr
         charts_by_section, report.degraded = {}, True
 
     inline_images = [(c.cid, c.png) for c in charts_by_section.values()]
+    takeaways = _chart_takeaways(report)
     section_charts = {
-        sid: {"cid": c.cid, "caption": cap, "caption_url": url}
+        sid: {"cid": c.cid, "caption": cap, "caption_url": url,
+              "takeaway": takeaways.get(sid, c.summary)}
         for sid, (c, cap, url) in _CHART_CAPTIONS_FROM(charts_by_section).items()
     }
     try:
@@ -301,9 +303,27 @@ def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narr
 # The URL is the live, interactive, zoomable chart page (FRED / Yahoo); the email
 # image links out to it since email cannot host an interactive chart.
 _CHART_META: dict[str, tuple[str, str]] = {
-    "rates_and_dollar": ("Source: FRED (DGS2, DGS10)", "https://fred.stlouisfed.org/series/DGS10"),
-    "commodities": ("Source: Yahoo Finance (CL=F)", "https://finance.yahoo.com/chart/CL=F"),
+    "rates_and_dollar": ("Source: FRED (DGS10)", "https://fred.stlouisfed.org/series/DGS10"),
+    "commodities": ("Source: Yahoo Finance (CL=F, GC=F, HG=F)", "https://finance.yahoo.com/chart/CL=F"),
 }
+
+
+def _chart_takeaways(report) -> dict[str, str]:
+    """Python-computed 'what this tells you' line per charted section (accuracy-safe).
+
+    Every figure in these reads is computed straight from the data, so the chart
+    explanation can never carry a wrong number (spec §1, redesign item 5).
+    """
+    history = _state_history()
+    return {
+        "rates_and_dollar": charts_mod.ten_year_takeaway(
+            ten_year=_usable_value(report, "ust10y"),
+            ten_year_history=history.get("ust10y", []),
+        ),
+        "commodities": charts_mod.commodities_takeaway(
+            {k: history.get(k, []) for k in ("wti", "gold", "copper")},
+        ),
+    }
 
 
 def _CHART_CAPTIONS_FROM(charts_by_section):
@@ -383,6 +403,12 @@ def _build_view(
     hbars, hbar_maxabs = vm.build_hbars(_index_changes(history))
     sparklines = vm.build_sparklines(_watchlist_history(cfg, history))
 
+    # Per-section session/week/month stat tables (redesign "Visuals + macro").
+    # Values come from the freshly-pulled fields, the trailing windows from history.
+    stat_values = {k: (f.value if f and f.is_usable else None)
+                   for k, f in report.fields.items()}
+    stat_tables = vm.build_stat_tables(stat_values, history)
+
     favicon_tickers = _favicon_tickers(cfg)
     sections = vm.build_sections(
         order, prose_by_section,
@@ -390,6 +416,7 @@ def _build_view(
         favicon_tickers=favicon_tickers,
         cited_by_section=cited_by_section,
         section_charts=section_charts,
+        stat_tables=stat_tables,
         hbars=hbars,
         hbar_maxabs=hbar_maxabs,
         sparklines=sparklines,
@@ -488,16 +515,17 @@ def _build_charts(cfg, report) -> dict[str, charts_mod.Chart]:
 
     dates = _state_history_dates()
     if flags.get("yield_curve"):
-        chart = charts_mod.yield_curve_and_trend(
-            ust2y=_usable_value(report, "ust2y"),
-            ust10y=_usable_value(report, "ust10y"),
+        chart = charts_mod.ten_year_trend(
             ten_year_history=history.get("ust10y", []),
             ten_year_dates=dates.get("ust10y", []),
         )
         if chart:
             built["rates_and_dollar"] = chart
     if flags.get("oil_trend"):
-        chart = charts_mod.wti_trend(history.get("wti", []), dates=dates.get("wti", []))
+        chart = charts_mod.commodities_normalized(
+            {k: history.get(k, []) for k in ("wti", "gold", "copper")},
+            dates={k: dates.get(k, []) for k in ("wti", "gold", "copper")},
+        )
         if chart:
             built["commodities"] = chart
     return built
@@ -651,21 +679,27 @@ def _commit_state(*, send: bool, today: date | None = None, fields=None) -> None
     if fields:
         today_iso = (today or date.today()).isoformat()
         for key, field in fields.items():
-            if field.is_usable and key in st.data["metrics"]:
-                metric = st.data["metrics"][key]
-                hist = list(metric.get("history", []))
-                hist.append(field.value)
-                metric["history"] = hist
-                # Stamp today's date in lockstep so every close carries its true
-                # date going forward (the chart x-axis is dated from real data, not
-                # inferred). Backfill the gap with the seed if dates lag history.
-                dates = list(metric.get("history_dates", []))
-                while len(dates) < len(hist) - 1:
-                    dates.append("")   # unknown older dates (pre-schema closes)
-                dates.append(today_iso)
-                metric["history_dates"] = dates
-                metric["prev_close"] = metric.get("close")
-                metric["close"] = field.value
+            if not field.is_usable:
+                continue
+            # Seed a metric entry for any key not yet in an older state file, so the
+            # macro additions (copper, inflation, policy rate, credit spread) begin
+            # accruing history on their first real send (backward-compatible bump).
+            if key not in st.data["metrics"]:
+                st.data["metrics"][key] = state_mod._empty_metric(key)
+            metric = st.data["metrics"][key]
+            hist = list(metric.get("history", []))
+            hist.append(field.value)
+            metric["history"] = hist
+            # Stamp today's date in lockstep so every close carries its true date
+            # going forward (the chart x-axis is dated from real data, not inferred).
+            # Backfill the gap with the seed if dates lag history.
+            dates = list(metric.get("history_dates", []))
+            while len(dates) < len(hist) - 1:
+                dates.append("")   # unknown older dates (pre-schema closes)
+            dates.append(today_iso)
+            metric["history_dates"] = dates
+            metric["prev_close"] = metric.get("close")
+            metric["close"] = field.value
     st.data["last_sent_date"] = (today or date.today()).isoformat()
     st.data["sent_today"] = True
     state_mod.save_state(st)

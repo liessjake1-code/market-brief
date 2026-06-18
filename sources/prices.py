@@ -92,10 +92,17 @@ def fetch_history(
     out: dict[str, list[float]] = {}
     for key in METRIC_KEYS:
         sym = SYMBOLS_BY_METRIC[key]
-        if is_yield(key) and sym.fred:
-            out[key] = fred.history(sym.fred, days, fetcher=series_fetcher)
-        else:
+        # FRED-sourced rate-like metrics (yields + the macro additions) seed from
+        # FRED so the history basis matches the daily print; a FRED-only metric
+        # (no yfinance symbol) always takes this path.
+        if sym.fred and (is_yield(key) or not sym.yf):
+            out[key] = fred.history(
+                sym.fred, days, fetcher=series_fetcher, units=sym.fred_units,
+            )
+        elif sym.yf:
             out[key] = dl(sym.yf, days)
+        else:
+            out[key] = []
     return out
 
 
@@ -124,12 +131,17 @@ def pull_fields(
         sym = SYMBOLS_BY_METRIC[key]
 
         if is_yield(key) and sym.fred:
-            fv = fred.latest_value(sym.fred, fetcher=series_fetcher)
+            fv = fred.latest_value(sym.fred, fetcher=series_fetcher, units=sym.fred_units)
             if fv is not None:
                 fields[key] = Field(key, fv[1], Source.FRED, as_of=fv[0])
                 continue
-            closes = dl(sym.yf, 5)  # yfinance yield fallback
-            fields[key] = _field_from_closes(key, closes, Source.YFINANCE)
+            # yfinance fallback only exists for the Treasury yields (^TNX); a
+            # FRED-only macro metric simply degrades to MISSING (it is optional).
+            if sym.yf:
+                closes = dl(sym.yf, 5)
+                fields[key] = _field_from_closes(key, closes, Source.YFINANCE)
+            else:
+                fields[key] = Field(key, None, Source.MISSING)
             continue
 
         if key == "wti":
