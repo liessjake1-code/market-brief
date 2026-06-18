@@ -56,3 +56,12 @@ Work one roadmap phase at a time. Describe your plan and wait for approval befor
 writing code. After each phase, ensure the phase's "Done when" bar is met before
 moving on. When the execution guide says "use the artifact from Part 4," use that
 exact schema/prompt/formula rather than designing your own.
+
+## Context handoff (ALWAYS do this proactively)
+When the chat gets long (or after finishing a big chunk of work), do NOT wait to be
+asked: tell the human plainly that the chat is getting long, then give them a
+ready-to-paste transfer prompt for a NEW chat. Format it as a single fenced code
+block the human can copy verbatim. The transfer prompt must include: which branch
+we are on and that build/phases mirrors to main, the exact state of the work, what
+is done, what remains (with the user's firm decisions), the test command, and any
+TEMPORARY flags to restore. Make resuming in a fresh chat zero-friction.
