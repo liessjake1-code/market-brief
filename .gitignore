@@ -61,7 +61,10 @@ Thumbs.db
 *.swp
 *~
 
-# Design redesign scratch (previews, screenshots) — not repo content
-design-preview/
+# Design redesign references — KEEP the approved template + preview harness
+# (design-preview/*.j2 and *.py) tracked so the look + preview loop survive across
+# chats. Ignore only the GENERATED scratch (rendered HTML + screenshots).
+design-preview/*.html
+design-preview/*.png
 Screenshot *.png
 daily_market_brief_claude_design.html
