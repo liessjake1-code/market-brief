@@ -11,13 +11,14 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
-- **Current phase:** Phase 3 (Diff line) — BUILT + tested (34
+- **Current phase:** Phase 4 (Top Story engine) — BUILT + tested (47
   tests green on py3.12 via uv). Phase 1 also BUILT; both await one human Actions
   trigger of `smoke-test.yml` to close their gates on the runner.
 - **Build mode:** Human delegated autonomous build-out (2026-06-17): proceed
   through all phases, commit at each gate, hand off when context gets long.
   Track A (human-only) actions are being collected into a punch list for the end.
-- **Next phase to build:** Phase 4 (Top Story engine).
+- **Next phase to build:** Phase 5 (Resilience + data layer) — first phase
+  that touches the network (yfinance/FRED).
 - **Repo:** https://github.com/liessjake1-code/market-brief (public, `main` branch).
 - **Local path:** /Users/jakeliess/market-brief
 - **Today's date at setup:** 2026-06-17
