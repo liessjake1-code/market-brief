@@ -18,10 +18,41 @@ from typing import Callable, Optional
 import requests
 
 FRED_BASE = "https://api.stlouisfed.org/fred/series/observations"
+FRED_RELEASES_DATES = "https://api.stlouisfed.org/fred/releases/dates"
 REQUEST_TIMEOUT = 15  # seconds; never hang the daily run on a slow FRED
 
 # A series fetcher returns observations oldest->newest as (date_str, value).
 SeriesFetcher = Callable[[str, int], list[tuple[str, float]]]
+
+# A releases-dates fetcher takes (realtime_start, realtime_end) ISO dates and
+# returns the raw FRED rows: each a dict with at least "release_name" and "date".
+ReleasesDatesFetcher = Callable[[str, str], list[dict]]
+
+
+def fetch_release_dates(realtime_start: str, realtime_end: str) -> list[dict]:
+    """Scheduled FRED release dates in [realtime_start, realtime_end] (ISO dates).
+
+    Uses /fred/releases/dates so the response carries `release_name` per row (no
+    brittle hardcoded release_id mapping). `include_release_dates_with_no_data=true`
+    is LOAD-BEARING: without it FRED omits upcoming/future dates and you only get
+    past releases. Raises on HTTP error so the caller can degrade.
+    """
+    api_key = os.environ.get("FRED_API_KEY")
+    if not api_key:
+        raise RuntimeError("FRED_API_KEY not set")
+    params = {
+        "api_key": api_key,
+        "file_type": "json",
+        "include_release_dates_with_no_data": "true",
+        "sort_order": "asc",
+        "realtime_start": realtime_start,
+        "realtime_end": realtime_end,
+        "limit": 1000,
+    }
+    resp = requests.get(FRED_RELEASES_DATES, params=params, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    rows = resp.json().get("release_dates", [])
+    return [r for r in rows if isinstance(r, dict)]
 
 
 def _fetch_series(series_id: str, limit: int) -> list[tuple[str, float]]:
