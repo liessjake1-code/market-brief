@@ -45,6 +45,13 @@ EXIT_HARD_FLOOR = 2
 # (env unset) always do the real pull.
 _OFFLINE_ENV = "MARKET_BRIEF_OFFLINE"
 
+# Honest note shown in "What to Watch" when the OPTIONAL events calendar could not
+# be retrieved. This is a per-section caveat, NOT the whole-brief degraded banner
+# (spec §7.5: the banner is for stale core data or a failed model only).
+_CALENDAR_DEGRADED_NOTE = (
+    "Scheduled-events feed unavailable this morning; check an economic calendar directly."
+)
+
 
 def build_brief(*, send: bool, today: date | None = None) -> int:
     today = today or date.today()
@@ -344,8 +351,16 @@ def _build_view(
     forward_events = tuple({"time_label": e.time_label, "title": e.title} for e in cal.events)
     earnings = tuple({"ticker": e.ticker, "when": e.when} for e in cal.earnings if e.when == "bmo") \
         or tuple({"ticker": e.ticker, "when": e.when} for e in cal.earnings)
-    # A failed optional calendar is a degraded run; flag it (read-once, no later mutation).
-    degraded = report.degraded or cal.degraded
+    # The degraded BANNER is reserved for stale CORE data or a failed model (spec §7.5).
+    # The OPTIONAL "What to Watch" calendar is non-core: when it fails we show an honest
+    # per-section note (calendar_note) instead of tripping the whole-brief banner.
+    degraded = report.degraded
+    calendar_note = _CALENDAR_DEGRADED_NOTE if cal.degraded else ""
+    if cal.degraded:
+        # Honest note only; does NOT trip the banner. The HTTP-status reason is
+        # logged by sources/calendar.py for diagnosis (e.g. a 402/403 free-tier wall).
+        print("  calendar: optional events feed unavailable (see calendar log); "
+              "noting in What to Watch, banner unaffected")
 
     # Glance "why" is a SHORT direction/quiet tag, not the full causal sentence
     # (structure fix #4 — the full read lives once in the body section).
@@ -392,6 +407,7 @@ def _build_view(
         live_figures=(),  # populated once a live pre-market pull is wired (best-effort)
         forward_events=forward_events,
         earnings=earnings,
+        calendar_note=calendar_note,
         chart_cids=tuple(c["cid"] for c in section_charts.values()),
     )
 

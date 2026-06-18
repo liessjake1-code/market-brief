@@ -126,7 +126,8 @@ class BriefView:
     live_figures: tuple[FigureCell, ...]
     forward_events: tuple[dict, ...]
     earnings: tuple[dict, ...]
-    chart_cids: tuple[str, ...]
+    calendar_note: str = ""   # honest note when the optional events feed is unavailable
+    chart_cids: tuple[str, ...] = ()
     sources_note: str = "Sources: yfinance, FRED, RSS (incl. WSJ). Automated; audit against the linked pages."
 
 

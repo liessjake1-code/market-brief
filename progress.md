@@ -134,6 +134,30 @@ of secrets and whether they are set.
       expected to pass on the next send.
   192 tests green on py3.12. The next real send is the proof point: expect NO
   degraded banner and real sourced "why" prose with 100%-accurate Python numbers.
+- **DEGRADED-BANNER FALSE ALARM FIXED — part (A) (2026-06-18):** The red "Degraded
+  run" banner kept appearing on otherwise-clean runs because `brief.py` flipped the
+  whole-brief banner on an OPTIONAL-calendar failure (`degraded = report.degraded or
+  cal.degraded`). The "What to Watch" calendar (FMP primary, Finnhub backup) fails
+  because FMP's free tier moved economic_calendar/earning_calendar to paid. Per spec
+  §7.5 the banner is reserved for stale CORE data or a failed model only. Shipped on
+  build/phases (198 tests green, +6):
+    * brief.py: `degraded = report.degraded` (calendar no longer trips the banner).
+      A failed optional calendar now sets `calendar_note` instead, an honest
+      per-section caveat shown in "What to Watch" ("Scheduled-events feed unavailable
+      this morning; check an economic calendar directly"), and prints a one-line run
+      note. Core stale/missing data still trips the banner (unchanged).
+    * render/viewmodel.py: BriefView gains `calendar_note` (default ""); `chart_cids`
+      also got a default so the new field could precede it (all call sites use kwargs).
+    * render/template.html.j2: renders `view.calendar_note` (italic, muted) under the
+      What to Watch list when present.
+    * sources/calendar.py: `_describe_error` surfaces the HTTP STATUS (e.g. "HTTP 402")
+      from requests' HTTPError so the run log shows WHY the free tier failed; both
+      providers log fetch/parse failures at WARNING (`logging.getLogger(__name__)`).
+    * tests/test_calendar_note.py (new, 6 tests): calendar failure does NOT set
+      view.degraded; clean calendar leaves no note; CORE failure still trips banner;
+      _describe_error surfaces HTTP status; failed provider logs the reason.
+  Part (B) — research a genuinely free, reliable economic-events + earnings calendar
+  source that resolves from the Actions runner — is the next step (ask before wiring).
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test
