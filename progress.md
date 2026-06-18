@@ -11,6 +11,14 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **GO-LIVE IN PROGRESS (2026-06-18):** All 7 phases built + merged to `main`
+  (default branch, so the daily-brief.yml crons register and fire). Real sends
+  land in the Tulane inbox. Now iterating on look + content quality before
+  locking down. 149 tests green on py3.12.
+- **TEMPORARY flags to RESTORE before go-live (do not forget):**
+  1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
+     It bypasses the once-per-day idempotency guard so we can do multiple test
+     sends/day; while true the two DST crons CAN double-send.
 - **Current phase:** Phase 7 (Email-safe template + charts) — BUILT + tested
   (142 tests green on py3.12). The last build phase. All seven phases are now
   built; only the Track A human go-live punch list remains (HANDOFF_PHASE7.md).
@@ -242,9 +250,27 @@ history; this entry covers the last phase.
   runs/ dumps alongside last_run.json and commits when either changed (commit
   79c4f07 / merged to main cd1d12a; +2 tests, 144 green). Next send leaves an
   auditable runs/ dump in the repo.
-- STILL TODO: confirm the email actually landed in the Tulane inbox (vs Junk);
-  audit every number against its source page; re-run to capture a runs/ dump and
-  diagnose the degrade (thin mid-day news vs validator/cause-check reject).
+- CONFIRMED: email landed in the Tulane INBOX (not Junk). Hardest external
+  unknown cleared; Phase 0 safe-senders trust holds.
+- DEGRADE ROOT CAUSE FOUND + FIXED: the committed runs/2026-06-18.json showed
+  raw_model_output=null on every section (templated "No clear catalyst"). The
+  API call SUCCEEDED (user was billed), so it was not auth/key/model-string. The
+  model wrapped its JSON in a ```json fence, so json.loads() threw and _try_call
+  swallowed it -> full degrade. Fixes shipped to main:
+    (a) _try_call now LOGS the exception type+message (was silent) — commit on
+        main 7a1e133. A silently degrading model is the spec §13 hard-to-notice
+        failure.
+    (b) _extract_json strips a code fence / preamble before json.loads, so
+        fenced replies parse — commit on main ace9535, +4 tests.
+  Expected: next send produces real causal prose instead of templated lines.
+- IDEMPOTENCY GUARD (not a bug): a later green run sent no email because
+  last_sent_date was already today -> "already sent (idempotent)". To allow
+  multiple test sends/day while iterating, added TEMPORARY
+  monitoring.allow_repeat_send (main dd5953a). MUST set back to false at go-live.
+- STILL TODO: prove the prose fix on a real send (allow_repeat_send is now true,
+  so a new manual dispatch will actually send today); audit numbers vs sources;
+  then the LOOK/DESIGN pass on render/template.html.j2 (user dislikes current
+  appearance) — likely its own focused session.
 - NOTE (not a bug): first run printed "state-commit: no change to last_run.json"
   because there was no committed state baseline yet; normal commits begin next run.
 
