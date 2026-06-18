@@ -11,6 +11,15 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
+- **NODE 20 ACTIONS CHORE — DONE (2026-06-18), build/phases fe8b3d3, mirrored to
+  main a782e07.** GitHub deprecated the Node 20 actions runtime; `actions/checkout@v4`
+  and `actions/setup-python@v5` emitted a deprecation warning on every run and would
+  eventually hard-fail when the Node 20 runner is retired. Bumped both daily-brief.yml
+  and smoke-test.yml to the first majors on Node 24: `checkout@v5` + `setup-python@v6`.
+  No behavior change (python-version 3.12 + the STATE_COMMIT_PAT checkout token are
+  unchanged); workflow-only, no Python touched, test suite unaffected. Track A proof
+  (warning gone) is the next workflow run's log. Open: deferred per-stock watchlist.
+
 - **LOOK FIXES FROM THE REAL-SEND SCREENSHOTS — DONE (2026-06-18), build/phases
   af579a9, mirrored to main 75c1cb4, 234 tests green (+8).** The human had the
   delivered email open in Outlook and shared screenshots. Three fixes shipped, each
