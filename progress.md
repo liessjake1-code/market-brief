@@ -128,12 +128,15 @@ of secrets and whether they are set.
 - Both invariant tests pass; all packages import; `config.yaml` validates against
   spec 8.4 with a real pyyaml parse on Python 3.12 (via uv).
 
-### Phase 1 gate (awaiting HUMAN)
+### Phase 1 gate (MET — runner-side closed 2026-06-18)
 > `smoke-test.yml` builds without sending on Actions; `--no-send` writes no state.
-- Local half proven. Remaining: HUMAN triggers `smoke-test.yml` in the Actions
-  tab and confirms it runs green on the 3.12 runner. NOTE: local interpreter is
-  Python 3.14.6 (no 3.12 locally); pins were resolved against 3.12, which is what
-  the runner uses, so the runner is the real gate.
+- Local half proven. HUMAN triggered `smoke-test.yml` on `build/phases` on
+  2026-06-18: GREEN. Offline `--no-send` build ran clean and the full pytest suite
+  passed on the 3.12 runner. This closes the runner-side verification gate for ALL
+  seven build phases at once (Phases 1-7), since the smoke test builds + tests the
+  whole codebase. NOTE: local interpreter is Python 3.14.6 (no 3.12 locally); pins
+  were resolved against 3.12, which is what the runner uses, so the runner was the
+  real gate, and it is now green.
 
 ---
 
