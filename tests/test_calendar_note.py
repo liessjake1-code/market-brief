@@ -75,14 +75,18 @@ def test_describe_error_without_response():
     assert "RuntimeError" in cal._describe_error(RuntimeError("network"))
 
 
-def test_failed_provider_logs_reason(monkeypatch, caplog):
+def test_failed_provider_logs_reason(caplog):
     def fetcher(url, params):
         raise RuntimeError("network down")
 
+    def bad_releases(a, b):
+        raise RuntimeError("FRED down")
+
     with caplog.at_level(logging.WARNING, logger="sources.calendar"):
-        data = cal.fetch_calendar(DAY, fetcher=fetcher, fmp_key="x", finnhub_key="y")
+        data = cal.fetch_calendar(DAY, fetcher=fetcher, releases_fetcher=bad_releases,
+                                  fred_key="k", finnhub_key="y")
 
     assert data.degraded is True
     text = caplog.text
-    assert "FMP fetch failed" in text
-    assert "Finnhub fetch failed" in text
+    assert "FRED releases fetch failed" in text
+    assert "Finnhub earnings fetch failed" in text

@@ -156,8 +156,39 @@ of secrets and whether they are set.
     * tests/test_calendar_note.py (new, 6 tests): calendar failure does NOT set
       view.degraded; clean calendar leaves no note; CORE failure still trips banner;
       _describe_error surfaces HTTP status; failed provider logs the reason.
-  Part (B) — research a genuinely free, reliable economic-events + earnings calendar
-  source that resolves from the Actions runner — is the next step (ask before wiring).
+- **FREE CALENDAR SOURCE WIRED — part (B) (2026-06-18):** Researched + verified free,
+  cloud-reachable sources, then (with the human's approval) replaced FMP. Root problem
+  confirmed: FMP moved economic_calendar/earning_calendar behind a paid plan. New wiring
+  (199 tests green) — both optional, graceful-fail, never the tier-one trigger, never trip
+  the banner:
+    * ECONOMIC EVENTS -> FRED /releases/dates (the EXISTING FRED_API_KEY; gov-backed,
+      rock-solid from datacenter IPs). New sources/fred.py::fetch_release_dates +
+      ReleasesDatesFetcher type. include_release_dates_with_no_data=true is LOAD-BEARING
+      (without it FRED omits upcoming dates). Response key is `release_dates`, rows carry
+      release_id/release_name/date (verified against FRED's documented shape). calendar.py
+      filters by a CURATED release-name substring set (_RELEASE_TIMES/_RELEASE_TITLES) so
+      "What to Watch" stays signal-dense (CPI, PPI, NFP, PCE, GDP, Retail Sales, jobless
+      claims, JOLTS, housing, etc.), de-dups by title, and attaches the canonical release
+      clock time in CT (FRED gives DATE only). "Advance Monthly Sales for Retail and Food
+      Services" is FRED's name for Retail Sales (handled).
+    * EARNINGS -> Finnhub /calendar/earnings (EXISTING FINNHUB_API_KEY; earnings is on
+      Finnhub's FREE tier — its economic calendar is premium, so we do NOT use that one).
+      hour field gives bmo/amc directly.
+    * fetch_calendar() rewritten: economic (FRED) and earnings (Finnhub) are INDEPENDENT —
+      one can fail while the other succeeds; each contributes degraded=True only if its key
+      was configured and it then failed. fmp_key param removed; releases_fetcher + fred_key
+      added (both injectable for offline tests). FMP code + parsers deleted.
+    * Endpoints verified to RESOLVE from this environment before wiring: FRED
+      /releases/dates (clean 400 on bad key = reachable, param shape accepted), Finnhub
+      /calendar/earnings (clean 401 = reachable, no cloud block). Nasdaq earnings backup
+      was researched (works with a Mozilla UA) but SKIPPED per the human (cloud-IP 403 risk).
+    * tests/test_calendar.py rewritten for the new architecture; test_calendar_note.py log
+      assertions updated. NEWS: newsapi.org evaluated and REJECTED (free tier bans
+      production use + 24h article delay); keeping free RSS for news.
+    * Track A note: daily-brief.yml still passes FMP_API_KEY as a (now unused, harmless)
+      env var; FRED_API_KEY + FINNHUB_API_KEY are both already set, which is all the new
+      code needs. No workflow change required. The real-runner proof (does Finnhub earnings
+      return data on the free tier; does FRED list today's releases) is the next real send.
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test
