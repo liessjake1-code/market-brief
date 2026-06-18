@@ -114,6 +114,29 @@ def stat_row(metric: str, value: Optional[float], history: list[float]) -> StatR
     )
 
 
+# Sentinel "metric" name for per-stock rows: not in METRICS_BY_KEY, not a yield,
+# so _change/_cell use the percent path and _level falls through to price format.
+_STOCK_METRIC = "_stock"
+
+
+def stock_stat_row(quote) -> StatRow:
+    """One stat row for a watchlist/movers ticker, labeled by its symbol.
+
+    Reuses the session/week/month percent-change formatting (stocks are equities,
+    never rate-like) and a price-formatted level. Thin history shows an em dash per
+    window, the same honest self-heal as a newly tracked metric. Takes a StockQuote
+    (sources.stocks); `quote.history` is most-recent-last.
+    """
+    history = list(quote.history)
+    return StatRow(
+        label=quote.ticker,
+        level=_level(quote.close, _STOCK_METRIC),
+        session=_cell(_change(history, _SESSION, _STOCK_METRIC), _STOCK_METRIC),
+        week=_cell(_change(history, ctx_mod.WEEK_SESSIONS, _STOCK_METRIC), _STOCK_METRIC),
+        month=_cell(_change(history, ctx_mod.MONTH_SESSIONS, _STOCK_METRIC), _STOCK_METRIC),
+    )
+
+
 def stat_table(
     metrics: tuple[str, ...],
     values: dict[str, Optional[float]],

@@ -13,6 +13,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 import jinja2
 from render import viewmodel as vm
+from sources.stocks import StockQuote
 
 
 def cell(label, value, direction="flat", url="https://finance.yahoo.com/quote/%5EGSPC"):
@@ -74,20 +75,49 @@ def build_view():
     stat_tables = vm.build_stat_tables(values, histories)
     macro_strips = vm.build_macro_strips(values)
 
+    # Per-stock quotes for the Watchlist/Movers tables (realistic ~month histories).
+    def stock(ticker, closes, volume=1_000_000):
+        return StockQuote(
+            ticker=ticker, close=closes[-1], prev_close=closes[-2],
+            history=tuple(closes),
+            history_dates=tuple(f"d{i}" for i in range(len(closes))),
+            volume=volume,
+        )
+
+    stock_quotes = {
+        "NVDA": stock("NVDA", ramp(180, 1.4, jitter=1.5)),
+        "TSLA": stock("TSLA", ramp(360, 1.8, jitter=3.0)),
+        "AMD": stock("AMD", ramp(168, -0.4, jitter=2.0)),
+        "SPCX": stock("SPCX", ramp(28, 0.5, jitter=0.6)),
+        "QUBT": stock("QUBT", ramp(11.5, -0.04, jitter=0.25)),
+    }
+    movers_order = ["NVDA", "TSLA", "AMD"]
+    watch_order = ["SPCX", "QUBT", "TSLA", "NVDA"]
+    stock_tables = {
+        "movers": vm.build_stock_table(movers_order, stock_quotes),
+        "watchlist": vm.build_stock_table(watch_order, stock_quotes),
+    }
+    stock_sparklines = {
+        "watchlist": vm.build_stock_sparklines(watch_order, stock_quotes),
+    }
+
     # NOTE: the prose + chart_takeaway strings below are DEMO fixture data only,
     # hand-written for a realistic preview. In production every figure is computed
     # in Python (engine.stats / render.charts takeaways); the model writes no number.
     def section(sid, prose, top=False, favicons=(), sources=(), chart=None):
+        # Movers/Watchlist use their per-stock table + per-stock sparklines.
+        table = stock_tables.get(sid) or stat_tables.get(sid, ())
+        sparks = stock_sparklines.get(sid, ())
         return vm.SectionView(
             section_id=sid, title=vm.SECTION_TITLES[sid], prose=prose,
             is_top_story=top, favicons=favicons, sources=sources,
             hbars=hbars if top else (), hbar_maxabs=hbar_maxabs if top else 1.0,
-            sparklines=sparklines if sid == "watchlist" else (),
+            sparklines=sparks,
             chart_cid=(chart or {}).get("cid"),
             chart_caption=(chart or {}).get("caption", ""),
             chart_caption_url=(chart or {}).get("caption_url", ""),
             chart_takeaway=(chart or {}).get("takeaway", ""),
-            stat_table=stat_tables.get(sid, ()),
+            stat_table=table,
             macro_strip=macro_strips.get(sid, ()),
         )
 
