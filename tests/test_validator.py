@@ -80,6 +80,20 @@ def test_month_day_date_whitelisted():
     assert r.ok
 
 
+def test_source_id_reference_not_treated_as_number():
+    # Inline citations like "WSJ (wsj-39)" must not leak "39" into the number check
+    # (the 2026-06-18 degrade). The cause is number-free, so it validates clean.
+    r = validate_prose("Yields rose on soft demand, WSJ (wsj-39) reports.", [])
+    assert r.ok, r.rejected
+    r2 = validate_prose("Fear eased after the deal, the Fed (fed-2) noted; CNBC (cnbc-11).", [])
+    assert r2.ok, r2.rejected
+
+
+def test_bare_year_is_whitelisted():
+    r = validate_prose("A supply overhang could arrive in 2027.", [])
+    assert r.ok, r.rejected
+
+
 # --- the retry signal ----------------------------------------------------- #
 def test_rejected_list_drives_retry_then_template():
     r = validate_prose("Crude near 76, gold near 9999.", [76.2, 2330.0])

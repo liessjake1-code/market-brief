@@ -223,16 +223,38 @@ def _section_template_line(report, section_id: str) -> str:
 
 
 def _brief_lines(report, narrative_results) -> dict[str, str]:
-    """Prefer model prose per section; fall back to the rich computed line.
+    """Build each rendered section line: accurate Python numbers + model's cause.
 
-    When the model ran, a section that fell back to a template already carries the
-    rich computed line (the narrative templated_fallback is _section_template_line).
-    When the model did not run at all, build the rich line for every grounded
-    section here so quiet sections are substantive, not bare (HANDOFF_DESIGN).
+    Accuracy is structural (spec §1): the numbers sentence is always computed in
+    Python from the data, so it cannot be wrong. The model contributes only the
+    number-free causal clause. A section whose model output was rejected (templated)
+    carries the computed line alone ("no clear catalyst") — honest, not bare. When
+    the model did not run at all, every section is the computed line.
     """
-    if narrative_results:
-        return {sid: res.prose for sid, res in narrative_results.items()}
-    return {sid: _section_template_line(report, sid) for sid in _SECTION_METRICS}
+    if not narrative_results:
+        return {sid: _section_template_line(report, sid) for sid in _SECTION_METRICS}
+
+    history = _state_history()
+    out: dict[str, str] = {}
+    for sid, res in narrative_results.items():
+        field = _representative_field(report, sid)
+        if res.templated or field is None:
+            # Model rejected (templated_fallback already set res.prose to the
+            # computed line), or no grounding metric: the computed line stands alone.
+            out[sid] = res.prose
+        else:
+            # Accurate numbers + the validated, number-free cause.
+            out[sid] = templated.section_with_cause(field, history.get(field.metric, []), res.prose)
+    return out
+
+
+def _representative_field(report, section_id: str):
+    """The first usable grounding field for a section, or None."""
+    for k in _SECTION_METRICS.get(section_id, ()):
+        f = report.fields.get(k)
+        if f is not None:
+            return f
+    return None
 
 
 def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narrative_results):

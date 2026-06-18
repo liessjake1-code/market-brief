@@ -53,6 +53,14 @@ _ORDINAL_WORDS = (
 ).split()
 _ORDINAL_DIGIT_RE = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.IGNORECASE)
 
+# Source-id references the model is instructed to cite inline, e.g. "WSJ (wsj-39)",
+# "CNBC (cnbc-11)", "the Fed (fed-2)". The trailing digit is an article index, not
+# a factual market number; left in, "wsj-39" leaks "39" into the number check and
+# wrongly rejects good prose (the 2026-06-18 degrade). Strip the whole token.
+_SOURCE_ID_RE = re.compile(r"\b(?:cnbc|mw|fed|wsj|ft|rss)-\d+\b", re.IGNORECASE)
+# Bare 4-digit years (2024-2030); a calendar year is not a market figure to verify.
+_YEAR_RE = re.compile(r"\b20[2-3]\d\b")
+
 # Instrument names that embed digits are domain terminology, not factual claims,
 # and must not be treated as numbers to verify. The model will routinely write
 # "the 10-year", "the 2s10s spread", "S&P 500", "Russell 2000". These are
@@ -88,9 +96,11 @@ def _strip_whitelisted(prose: str) -> str:
     Order: instrument names first (so "10-year" goes before the bare-number rule
     can see "10"), then clock times, dates, and digit-ordinals.
     """
+    prose = _SOURCE_ID_RE.sub(" ", prose)   # strip "wsj-39" before its digits are seen
     prose = _INSTRUMENT_RE.sub(" ", prose)
     prose = _CLOCK_RE.sub(" ", prose)
     prose = _DATE_RE.sub(" ", prose)
+    prose = _YEAR_RE.sub(" ", prose)
     prose = _ORDINAL_DIGIT_RE.sub(" ", prose)
     return prose
 

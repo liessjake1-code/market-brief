@@ -103,26 +103,55 @@ def computed_section_line(
     if field.is_missing or field.stale:
         return templated_line(field, change=None)
 
+    head = numbers_sentence(field, history)
+    hook = _SECTION_HOOK.get(section_id, "")
+    # No matched article means no causal "why" — that omission is correct (spec §2).
+    if hook:
+        return f"{head} No clear catalyst flagged. {hook}"
+    return f"{head} No clear catalyst flagged."
+
+
+def numbers_sentence(field: Field, history: list[float]) -> str:
+    """The accurate numbers-only sentence: level, day move, week/month, range.
+
+    ALL figures here are computed in Python straight from the data, so they are
+    100% accurate by construction (spec §1). This is the head of every section; the
+    model's number-free causal clause is appended after it. Degrades to the plain
+    templated line for a stale/missing field.
+    """
+    if field.is_missing or field.stale:
+        return templated_line(field, change=None)
     label = METRICS_BY_KEY[field.metric].label
     value = _fmt(field.value, field.metric)
     move = _move_clause(history, field.metric)
     rng = _range_clause(history)
-    # Trailing week/month context: the single most informative add (redesign).
     time_clause = ctx_mod.context_clause(ctx_mod.time_context(history, field.metric), field.metric)
-
     head = f"{label} at {value}"
     if move:
         head += f", {move}"
     head += time_clause
     if rng:
         head += f", {rng}"
-    head += "."
+    return head + "."
 
-    hook = _SECTION_HOOK.get(section_id, "")
-    # No matched article means no causal "why" — that omission is correct (spec §2).
-    if hook:
-        return f"{head} No clear catalyst flagged. {hook}"
-    return f"{head} No clear catalyst flagged."
+
+def section_with_cause(field: Field, history: list[float], cause: str) -> str:
+    """Accurate numbers sentence + the model's number-free causal clause.
+
+    The numbers come from Python (always correct); `cause` is the validated,
+    number-free 'why' the model wrote. Together they are the rendered section: a
+    precise figure line followed by a real sourced explanation, with no possibility
+    of a wrong stat (spec §1, §5.6).
+    """
+    head = numbers_sentence(field, history)
+    cause = (cause or "").strip()
+    if not cause:
+        return head
+    if not cause.endswith((".", "!", "?")):
+        cause += "."
+    # Capitalize the first letter of the cause for a clean sentence join.
+    cause = cause[0].upper() + cause[1:]
+    return f"{head} {cause}"
 
 
 def _fmt(value: Optional[float], metric: str) -> str:
