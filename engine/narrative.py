@@ -191,7 +191,11 @@ def _try_call(call: ModelCaller, bundles: list[SectionBundle], model: str) -> Op
         raw = call(SYSTEM_PROMPT, _user_message(bundles), model)
         data = json.loads(raw)
         return data if isinstance(data, dict) else None
-    except Exception:
+    except Exception as exc:
+        # Never raise (the brief ships regardless, spec §5.6), but DO surface the
+        # cause: a silently degrading model is the failure mode the spec warns is
+        # hardest to notice (§13). One line to the Actions log, classified.
+        print(f"  narrative: model call failed [{type(exc).__name__}]: {exc}")
         return None
 
 
