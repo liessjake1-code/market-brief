@@ -189,6 +189,48 @@ of secrets and whether they are set.
       env var; FRED_API_KEY + FINNHUB_API_KEY are both already set, which is all the new
       code needs. No workflow change required. The real-runner proof (does Finnhub earnings
       return data on the free tier; does FRED list today's releases) is the next real send.
+- **VISUALS + MACRO OVERHAUL — DONE (2026-06-18), shipped to build/phases + mirrored
+  to main (commit ae4b140), 226 tests green (+27).** The human asked for richer,
+  more informative visuals and macro context. All Python-computed (accuracy stays
+  structural; the model still writes ZERO numbers). What shipped:
+  1. SECTION STAT TABLES: a small session/week/month table now renders at the TOP of
+     each section box, before the prose. New `engine/stats.py` (pure: trailing change
+     per metric in pct, or bps for rate-like series; em dash when history too thin).
+     Surfaced via `viewmodel.SectionView.stat_table` + a `stat_table` macro in
+     template.html.j2; built in `brief._build_view` from fields + state history.
+  2. US EQUITIES: 4-row table (S&P/Nasdaq/Dow/Russell) x session/week/month, with the
+     existing inline week %-change hbar KEPT below it (human wanted both).
+  3. RATES CHART REWORK: dropped the confusing 2-panel curve. New
+     `charts.ten_year_trend` = one clean padded 10Y month line (no sawtooth) + a
+     Python-computed `ten_year_takeaway` ("what this tells you": level, week bps,
+     range position). The 2s10s spread (a synthetic row, 10Y-2Y in bps) and DXY now
+     read as NUMBERS in the rates stat table, not chart lines.
+  4. COMMODITIES CHART: new `charts.commodities_normalized` = ONE chart with WTI,
+     gold, AND copper rebased to 100 ~21 sessions ago (relative performance), legend
+     + dashed 100 baseline, plus `commodities_takeaway` naming the leader/laggard.
+  5. CHART TAKEAWAYS: every chart gets a Python-computed one-line read rendered under
+     it ("What this tells you: ..."). No model numbers.
+  6. NEW METRICS (all FREE, all OPTIONAL — they NEVER trip the degraded banner or the
+     hard floor, which stay core-data/model only): COPPER (yfinance HG=F), and from
+     FRED via the existing FRED_API_KEY: CPI YoY + PCE YoY (the `units=pc1` transform
+     returns the YoY rate directly — no manual math, so 100% accurate by construction),
+     FED FUNDS (DFF), HIGH-YIELD CREDIT SPREAD (BAMLH0A0HYM2). Wired through the metric
+     registry (new `rate_like`/`optional`/`display` fields; `is_yield` now means
+     "rate-like" = bps change for yields + the 4 macro rates), symbols.py (+`fred_units`),
+     fred.py (units passthrough; `_call_fetcher` inspects the signature so a units
+     transform is NEVER silently dropped — that would store a raw CPI index as a wrong
+     number), prices.py (FRED-only metrics route to FRED, copper to yfinance), and the
+     state schema (backward-compatible bump: `_commit_state` seeds any metric key not
+     yet in an older last_run.json, so the macro metrics start accruing history on
+     their first real send). Folded into the Rates and Commodities tables; copper also
+     in the normalized commodities chart. No NEW sections added.
+  New files: engine/stats.py, tests/test_stats.py, tests/test_macro_metrics.py.
+  Verified via the preview-loop screenshot (matches the approved look). FRED series
+  IDs (CPIAUCSL, PCEPI, DFF, BAMLH0A0HYM2) confirmed reachable; key-gated locally so
+  the real-runner proof (do they return data on the next real send) is the next send.
+  DEFERRED (not this session, per the human): the watchlist/movers per-stock
+  session/week/month table + per-stock news + per-stock "why".
+
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test
