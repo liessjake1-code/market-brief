@@ -60,3 +60,20 @@ def test_yield_move_reads_in_bps():
     line = templated.computed_section_line(_field("ust10y", 4.43), hist, section_id="rates_and_dollar")
     assert "bps" in line
     assert "swing factor" in line  # rates forward hook
+
+
+def test_section_with_cause_joins_accurate_numbers_and_model_why():
+    # The numbers sentence is 100% Python (accurate); the model's number-free cause
+    # is appended verbatim, capitalized and terminated.
+    hist = [6400.0, 6410.0, 6431.0]
+    line = templated.section_with_cause(
+        _field("sp500", 6431.0), hist, "stocks rose after the trade deal")
+    assert line.startswith("S&P 500 at 6,431")          # accurate computed head
+    assert "Stocks rose after the trade deal." in line   # model cause, cleaned
+
+
+def test_section_with_cause_empty_cause_is_just_numbers():
+    hist = [6400.0, 6431.0]
+    line = templated.section_with_cause(_field("sp500", 6431.0), hist, "")
+    assert line.startswith("S&P 500 at 6,431")
+    assert line.endswith(".")

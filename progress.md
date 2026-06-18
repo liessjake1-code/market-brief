@@ -108,6 +108,32 @@ of secrets and whether they are set.
   as a data-URI so the browser preview shows the actual chart (cid: only resolves in
   an email client). Decision trail: interactive charts in email are not possible;
   YTD/1-year context deferred (would need a much larger committed state file).
+- **100%-ACCURATE-STATS ARCHITECTURE (2026-06-18):** The 2nd real send was STILL
+  degraded. Diagnosed from the committed runs/2026-06-18.json: (1) the per_section
+  unwrap WORKED (real section keys), but (2) every section failed VALIDATION because
+  the model stated week/month %-moves that were flat-out WRONG (said VIX -9% when
+  actual was -1.7%; WTI -1.3% when actually +2.5%) and (3) inline citations like
+  "WSJ (wsj-39)" leaked their trailing digit ("39") into the number check. The
+  validator was correctly rejecting wrong numbers -> degrade. Human's standard:
+  "everything saying stats must be 100% accurate." Fix = make accuracy STRUCTURAL
+  (spec §1, "numbers computed in Python"):
+    * The model now writes ONLY a number-free CAUSE clause (the sourced "why") +
+      cause_source_id + confidence. The OUTPUT_SCHEMA and SYSTEM_PROMPT were
+      rewritten: "Write NO NUMBERS AT ALL in your cause text; a single number
+      discards the section." _accept_section now validates the CAUSE (must be
+      number-free + source-tagged), and SectionResult.prose holds that cause clause.
+    * Python writes EVERY figure: render/templated.numbers_sentence builds the
+      accurate level + day + week + month + range sentence from the data;
+      section_with_cause(field, history, cause) = that sentence + the model's cause.
+      brief._brief_lines joins them. A wrong stat is now impossible by construction.
+    * Validator hardened: _SOURCE_ID_RE strips "wsj-39"/"cnbc-11"/"fed-2" and
+      _YEAR_RE strips bare years before number extraction (they are not market
+      figures). Proven on the real run: 3/5 sections that had degraded now pass with
+      the OLD model output; the 2 that still failed had a stray number in the cause
+      ($60 gas, "50%" Kalshi) which the new number-free prompt forbids -> all 5
+      expected to pass on the next send.
+  192 tests green on py3.12. The next real send is the proof point: expect NO
+  degraded banner and real sourced "why" prose with 100%-accurate Python numbers.
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test

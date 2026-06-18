@@ -112,14 +112,15 @@ def _fallback(section_id):
 
 
 def test_valid_model_output_accepted():
+    # The model now writes only a number-free CAUSE; the system writes the numbers.
     def fake(system, user, model):
         return json.dumps({
             "rates_and_dollar": {
-                "prose": "The 10-year sits near 4.46%, up on soft auction demand.",
+                "cause": "Yields rose on soft auction demand.",
                 "cause_source_id": "cnbc-0", "confidence": "medium",
             },
             "crypto": {
-                "prose": "Bitcoin near 64,000, no clear catalyst.",
+                "cause": "no clear catalyst",
                 "cause_source_id": None, "confidence": "low",
             },
         })
@@ -129,17 +130,21 @@ def test_valid_model_output_accepted():
     assert not degraded
     assert not results["rates_and_dollar"].templated
     assert results["rates_and_dollar"].cause_source_id == "cnbc-0"
+    # res.prose now holds the validated, number-free cause clause.
+    assert results["rates_and_dollar"].prose == "Yields rose on soft auction demand."
 
 
-def test_invented_number_falls_back_to_template_after_retry():
+def test_number_in_cause_falls_back_to_template_after_retry():
+    # A number in the cause (the model's job is number-free) -> rejected, retried,
+    # then templated. 9.99% is not in the inputs, so it is caught either way.
     calls = {"n": 0}
     def fake(system, user, model):
         calls["n"] += 1
         return json.dumps({
-            "rates_and_dollar": {  # 9.99% is not in the inputs -> invented
-                "prose": "The 10-year spiked to 9.99% today.",
+            "rates_and_dollar": {
+                "cause": "Yields spiked to 9.99% on the auction.",
                 "cause_source_id": None, "confidence": "high"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, degraded, raw = N.generate(
@@ -155,9 +160,9 @@ def test_untagged_cause_is_stripped_to_template():
     def fake(system, user, model):
         return json.dumps({
             "rates_and_dollar": {  # causal verb, no source id -> cause check fails
-                "prose": "The 10-year near 4.46% rose because demand was soft.",
+                "cause": "Yields rose because demand was soft.",
                 "cause_source_id": None, "confidence": "high"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, degraded, raw = N.generate(
@@ -170,9 +175,9 @@ def test_invented_source_id_rejected():
     def fake(system, user, model):
         return json.dumps({
             "rates_and_dollar": {
-                "prose": "The 10-year near 4.46% rose on soft demand.",
+                "cause": "Yields rose on soft demand.",
                 "cause_source_id": "fake-999", "confidence": "high"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, _, _ = N.generate(
@@ -192,14 +197,14 @@ def test_whole_call_failure_templates_all():
     assert raw is None
 
 
-def test_cross_asset_synthesis_passes_with_derived_figure_in_inputs():
-    # The 2s10s spread (-25) is in the section's numbers, so prose may cite it.
+def test_number_free_cause_with_source_passes():
+    # A clean, number-free, sourced cause is accepted (the common good case).
     def fake(system, user, model):
         return json.dumps({
             "rates_and_dollar": {
-                "prose": "The 10-year near 4.46%; the 2s10s spread sits near -25 bps.",
-                "cause_source_id": None, "confidence": "medium"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+                "cause": "Yields slipped as the auction drew firm demand.",
+                "cause_source_id": "cnbc-0", "confidence": "medium"},
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, degraded, _ = N.generate(
@@ -221,9 +226,9 @@ def test_accepted_section_resolves_cited_source_to_title_and_url():
     def fake(system, user, model):
         return json.dumps({
             "rates_and_dollar": {
-                "prose": "The 10-year near 4.46%, up on soft auction demand.",
+                "cause": "Yields rose on soft auction demand.",
                 "cause_source_id": "cnbc-0", "confidence": "medium"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, _, _ = N.generate(
@@ -241,9 +246,9 @@ def test_per_section_envelope_is_unwrapped():
     def fake(system, user, model):
         return json.dumps({"per_section": {
             "rates_and_dollar": {
-                "prose": "The 10-year near 4.46%, up on soft auction demand.",
+                "cause": "Yields rose on soft auction demand.",
                 "cause_source_id": "cnbc-0", "confidence": "medium"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         }})
     results, degraded, _ = N.generate(
@@ -257,9 +262,9 @@ def test_flat_reply_still_accepted():
     # A correctly flat reply (keyed by section id) is unchanged by the unwrap.
     def fake(system, user, model):
         return json.dumps({
-            "rates_and_dollar": {"prose": "The 10-year near 4.46%.",
+            "rates_and_dollar": {"cause": "no clear catalyst",
                                  "cause_source_id": None, "confidence": "low"},
-            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+            "crypto": {"cause": "no clear catalyst", "cause_source_id": None,
                        "confidence": "low"},
         })
     results, degraded, _ = N.generate(

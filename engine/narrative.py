@@ -24,30 +24,37 @@ from engine.validator import validate_prose
 
 SYSTEM_PROMPT = (
     "You are the writer for a daily market brief. You are given computed numbers "
-    "and a small set of news articles. You write short, grounded causal prose. "
-    "You operate under three hard rules:\n\n"
-    "1. You may NEVER state a number that is not in the provided inputs. Round and "
-    "approximate (\"about 76 dollars\", never \"76.23\"). If a figure is not in the "
-    "inputs, do not write it.\n"
+    "and a small set of news articles. Your ONLY job is to write the causal "
+    "explanation — the 'why' — for each section. The numbers are written separately "
+    "by the system, NOT by you. You operate under three hard rules:\n\n"
+    "1. Write NO NUMBERS AT ALL in your 'cause' text. No prices, no percentages, no "
+    "basis points, no dollar figures, no levels. Not even approximate ones. The "
+    "system already states every figure; your job is the reason behind the move in "
+    "words only. Write \"oil fell sharply\" or \"yields eased\", never \"oil fell "
+    "1.3%\" or \"yields eased to 4.43%\". A single number in your cause text causes "
+    "the whole section to be discarded.\n"
     "2. Every causal claim (\"X fell because Y\", \"on soft demand\", \"after the "
     "data\") must reference one of the supplied articles by its source_id. If no "
-    "supplied article supports a cause, write \"no clear catalyst\" instead. "
-    "Inventing a plausible cause is a failure; honest uncertainty is correct.\n"
-    "3. First EXTRACT the explicit causal claims reporters made (quote the "
-    "reporter's reason and its source_id), THEN write each section using only "
-    "those extracted reasons plus the provided numbers.\n\n"
+    "supplied article supports a cause, set cause to \"no clear catalyst\" and "
+    "confidence low. Inventing a plausible cause is a failure; honest uncertainty "
+    "is correct.\n"
+    "3. First EXTRACT the explicit causal claims reporters made, THEN write the "
+    "cause using only those extracted reasons. Keep it to one or two plain "
+    "declarative sentences. No em dashes, no emojis.\n\n"
     "Output strict JSON only, no prose outside the JSON. The TOP-LEVEL object is "
     "keyed BY SECTION ID (e.g. {\"us_equities\": {...}, \"commodities\": {...}}); each "
-    "value is one entry with the fields shown in the per_section schema. Do NOT wrap "
-    "the sections in a \"per_section\" key. One entry per section. For quiet sections "
-    "with no move and no matched article, set confidence low and write one honest line."
+    "value is {\"cause\": string, \"cause_source_id\": string or null, \"confidence\": "
+    "\"low|medium|high\"}. Do NOT wrap the sections in a \"per_section\" key."
 )
 
+# The model writes ONLY the number-free cause + its source tag + confidence; the
+# system writes every figure (spec §1). Keep the schema minimal so the model is not
+# tempted to restate numbers (the level/change/prose fields are gone).
 OUTPUT_SCHEMA = {
-    "per_section": {
-        "level": "string", "change": "string", "context": "string",
-        "cause": "string", "cause_source_id": "string or null",
-        "confidence": "low|medium|high", "prose": "string",
+    "<section_id>": {
+        "cause": "string (the why, NO numbers)",
+        "cause_source_id": "string or null",
+        "confidence": "low|medium|high",
     }
 }
 
@@ -258,19 +265,29 @@ def _accept_section(
     tolerance_pct: float,
     articles: Optional[list["ScoredArticle"]] = None,
 ) -> tuple[bool, Optional[SectionResult]]:
-    """Validate one section's number check + cause check. (Part 4.4 / 4.5)"""
+    """Validate one section's CAUSE: number-free + cause-tagged (Part 4.4 / 4.5).
+
+    The model now writes only the number-free 'why'; the system writes every
+    figure. So the gate is: the cause carries NO unsupported number (in practice
+    no number at all — the inputs are not in the cause), and every causal claim is
+    tagged to a supplied article. This makes wrong stats impossible by construction
+    (spec §1): the model literally cannot emit a number into the rendered brief.
+    """
     if not isinstance(entry, dict):
         return False, None
-    prose = entry.get("prose", "")
-    if not isinstance(prose, str) or not prose:
+    cause = entry.get("cause", "")
+    if not isinstance(cause, str) or not cause.strip():
         return False, None
 
-    number_check = validate_prose(prose, inputs, tolerance_pct=tolerance_pct)
+    # The cause must be number-free. Any numeric token not consistent with the
+    # input set is invented; since causes should carry no figures at all, this
+    # rejects a cause that slipped a number in (e.g. a stray "$4 per gallon").
+    number_check = validate_prose(cause, inputs, tolerance_pct=tolerance_pct)
     if not number_check.ok:
         return False, None
 
     cause_source_id = entry.get("cause_source_id")
-    cause_check = check_cause(prose, cause_source_id)
+    cause_check = check_cause(cause, cause_source_id)
     if not cause_check.ok:
         return False, None
     # A tagged source_id must actually be one we supplied (not invented).
@@ -279,7 +296,7 @@ def _accept_section(
 
     return True, SectionResult(
         section_id=section_id,
-        prose=prose,
+        prose=cause.strip(),   # the rendered section = computed numbers + this cause
         cause_source_id=cause_source_id,
         confidence=str(entry.get("confidence", "low")),
         templated=False,
