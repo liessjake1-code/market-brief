@@ -76,20 +76,49 @@
     {%- endfor -%}
   </tr></table>
 {%- endmacro -%}
-{# A body section: serif heading, prose, optional inline chart (PNG cid or HTML
-   bars/sparklines), favicon-as-text, source citation, hairline divider. The Top
-   Story renders in its own tinted block with a "TOP STORY" kicker. #}
+{# Section stat table: a small session/week/month grid at the TOP of the section,
+   before the prose (redesign "Visuals + macro"). Every figure is Python-computed,
+   so it is 100% accurate; green/red carry direction only. Email-safe HTML table. #}
+{%- macro stat_cell(c) -%}
+  {%- set color = '#0b7a3d' if c.direction == 'up' else ('#c0392b' if c.direction == 'down' else '#8a877f') -%}
+  <td style="font-family:{{ MONO }};font-size:11px;color:{{ color }};padding:4px 0 4px 12px;text-align:right;white-space:nowrap;">{{ c.text }}</td>
+{%- endmacro -%}
+{%- macro stat_table(rows) -%}
+  {%- if rows -%}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:2px 0 12px 0;">
+    <tr style="border-bottom:1px solid #1b1a17;">
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 0;"></td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Level</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Session</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Week</td>
+      <td style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;padding:0 0 4px 12px;text-align:right;">Month</td>
+    </tr>
+    {%- for r in rows -%}
+    <tr style="border-bottom:1px solid #E7E5E0;">
+      <td style="font-family:{{ SANS }};font-size:11px;color:#1b1a17;padding:4px 0;font-weight:600;">{{ r.label }}</td>
+      <td style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;padding:4px 0 4px 12px;text-align:right;white-space:nowrap;">{{ r.level }}</td>
+      {{ stat_cell(r.session) }}{{ stat_cell(r.week) }}{{ stat_cell(r.month) }}
+    </tr>
+    {%- endfor -%}
+  </table>
+  {%- endif -%}
+{%- endmacro -%}
+{# A body section: serif heading, stat table, prose, optional inline chart (PNG cid
+   or HTML bars/sparklines), favicon-as-text, source citation, hairline divider.
+   The Top Story renders in its own tinted block with a "TOP STORY" kicker. #}
 {%- macro section_block(section, divider) -%}
   {% if section.is_top_story %}
   <div style="background:#F6F5F2;padding:16px 18px;border-left:3px solid #1b1a17;">
     <div style="font-family:{{ SANS }};font-size:10px;color:#8a877f;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Top Story</div>
     <div style="font-family:{{ SERIF }};font-size:19px;color:#1b1a17;font-weight:600;padding:2px 0 6px 0;line-height:1.25;">{{ section.title }}</div>
+    {{ stat_table(section.stat_table) }}
     <div style="font-family:{{ SANS }};font-size:13px;color:#3c3a33;line-height:1.6;">{{ section.prose }}</div>
     {{ section_extras(section) }}
     {{ sources_line(section.sources) }}
   </div>
   {% else %}
   <div style="font-family:{{ SERIF }};font-size:16px;color:#1b1a17;font-weight:600;padding-bottom:4px;">{{ section.title }}</div>
+  {{ stat_table(section.stat_table) }}
   <div style="font-family:{{ SANS }};font-size:13px;color:#3c3a33;line-height:1.6;">{{ section.prose }}</div>
   {{ section_extras(section) }}
   {{ sources_line(section.sources) }}
@@ -111,6 +140,9 @@
     {%- endif -%}
   </div>
   {{ chart_caption(section.chart_caption, section.chart_caption_url) }}
+  {% if section.chart_takeaway %}
+  <div style="font-family:{{ SANS }};font-size:12px;color:#3c3a33;line-height:1.5;padding-top:6px;"><span style="font-weight:700;color:#1b1a17;">What this tells you:</span> {{ section.chart_takeaway }}</div>
+  {% endif %}
   {% endif %}
   {% if section.favicons %}<div style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;padding-top:9px;">{{ tickers_text(section.favicons) }}</div>{% endif %}
   {% if section.sparklines %}

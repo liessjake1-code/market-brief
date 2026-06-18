@@ -64,3 +64,27 @@ def test_commit_state_stamps_history_date_per_close(monkeypatch, tmp_path):
     dates = loaded.history_dates("sp500")
     assert len(dates) == len(hist)          # aligned 1:1
     assert dates[-1] == "2026-06-18"        # today stamped on the new close
+
+
+def test_commit_state_seeds_new_macro_metric_into_old_state(monkeypatch, tmp_path):
+    # A pre-overhaul state file (no copper/inflation keys) must gain them on the
+    # first real send (backward-compatible bump), so they start accruing history.
+    from engine import state as S
+
+    repo = str(tmp_path)
+    monkeypatch.setattr(S, "state_path", lambda repo_root=None: f"{repo}/last_run.json")
+    seeded = S.backfill(lambda days: {k: [100.0, 101.0] for k in __import__(
+        "engine.metrics", fromlist=["METRIC_KEYS"]).METRIC_KEYS}, days=2)
+    # Simulate an OLD file: drop the new macro keys entirely.
+    for k in ("copper", "cpi_yoy", "pce_yoy", "fed_funds", "hy_spread"):
+        seeded.data["metrics"].pop(k, None)
+    S.save_state(seeded, repo_root=repo)
+    monkeypatch.setattr(B.state_mod, "commit_state_back", lambda **k: False)
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
+
+    B._commit_state(send=True, today=date(2026, 6, 18), fields=_fields())
+
+    loaded = S.load_state(repo, today=date(2026, 6, 18))
+    assert loaded.history("copper") == [100.0]          # seeded + first close
+    assert loaded.history("cpi_yoy") == [100.0]
+    assert loaded.history_dates("copper") == ["2026-06-18"]

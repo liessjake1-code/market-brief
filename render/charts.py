@@ -175,98 +175,169 @@ def index_change_bar(changes: dict[str, float], *, cid: str = "chart_index") -> 
     return Chart(cid=cid, png=_to_png(fig), title="Index daily change", summary=summary)
 
 
-def yield_curve_and_trend(
+def ten_year_trend(
     *,
-    ust2y: Optional[float],
-    ust10y: Optional[float],
     ten_year_history: list[float],
     ten_year_dates: Optional[list[str]] = None,
     cid: str = "chart_rates",
 ) -> Optional[Chart]:
-    """Yield curve (2s/10s) + the 10-year trend, fully labeled (spec §6 default-on).
+    """A clean 10-year yield month trend, padded so it is not a sawtooth (redesign).
 
-    Two panels: left, the 2y vs 10y level with the 2s10s spread; right, the 10-year
-    trend over the past month with a dated x-axis. Both carry unit labels and a
-    "what it shows" subtitle. Returns None when neither panel can be drawn honestly.
+    One panel only: the 10-year trend over the trailing month, dated x-axis, a
+    unit-labeled y-axis, and an annotated end value. The 2s10s spread and DXY now
+    read as NUMBERS in the rates stat table, not extra chart lines (the human found
+    multi-line rates charts confusing). _pad_ylim keeps a quiet real range from
+    being magnified into noise. Returns None on thin history.
     """
-    have_curve = ust2y is not None and ust10y is not None
     full = [v for v in ten_year_history if v is not None]
-    have_trend = len(full) >= 2
-    if not have_curve and not have_trend:
+    if len(full) < 2:
         return None
-
-    fig, (ax_curve, ax_trend) = plt.subplots(1, 2, figsize=(6.8, 2.9))
-    fig.patch.set_facecolor(PAPER)
-    for ax in (ax_curve, ax_trend):
-        _style_axes(ax)
-
-    if have_curve:
-        spread = (ust10y - ust2y) * 100.0
-        ax_curve.plot(["2-year", "10-year"], [ust2y, ust10y], marker="o", color=BLUE, linewidth=1.8)
-        _titled(ax_curve, "Treasury yield curve, today", f"2s10s spread {spread:+.0f} bps")
-        ax_curve.set_ylabel("Yield (%)", color=GREY, fontsize=8, **_CHART_FONT)
-        for label, val in (("2-year", ust2y), ("10-year", ust10y)):
-            ax_curve.annotate(f"{val:.2f}%", (label, val), textcoords="offset points",
-                              xytext=(0, 7), ha="center", color=INK, fontsize=9, fontweight="bold")
-        _pad_ylim(ax_curve, [ust2y, ust10y], min_frac=0.05)
-    else:
-        ax_curve.axis("off")
-
-    if have_trend:
-        series = full[-_MONTH_SESSIONS:]
-        n = len(series)
-        win_dates = (ten_year_dates or [])[-len(full):][-n:]
-        ax_trend.plot(range(n), series, color=BLUE, linewidth=1.8)
-        span = _date_xaxis(ax_trend, win_dates, n)
-        _titled(ax_trend, "10-year yield, past month",
-                "Daily close" + (f"  ·  {span}" if span else ""))
-        ax_trend.set_ylabel("Yield (%)", color=GREY, fontsize=8, **_CHART_FONT)
-        ax_trend.annotate(f"{series[-1]:.2f}%", (n - 1, series[-1]), textcoords="offset points",
-                          xytext=(-2, 6), ha="right", color=INK, fontsize=9, fontweight="bold")
-        _pad_ylim(ax_trend, series)
-    else:
-        ax_trend.axis("off")
-
-    fig.tight_layout()
-    bits = []
-    if have_curve:
-        bits.append(f"2Y {ust2y:.2f}%, 10Y {ust10y:.2f}% (2s10s {(ust10y - ust2y) * 100:+.0f} bps)")
-    if have_trend:
-        bits.append(f"10-year {full[-1]:.2f}%, past month")
-    return Chart(cid=cid, png=_to_png(fig), title="Rates", summary="Treasury yields: " + "; ".join(bits))
-
-
-def wti_trend(
-    history: list[float], *, dates: Optional[list[str]] = None, cid: str = "chart_oil",
-) -> Optional[Chart]:
-    """WTI crude trailing one-month trend, fully labeled (spec §6 default-on).
-
-    Clamps to the last ~21 sessions so the chart shows a month, not the entire
-    rolling backfill. Renders a title + "what it shows" subtitle, a dated x-axis,
-    a unit-labeled y-axis, and annotated start/end values. Returns None on thin data.
-    """
-    full = [v for v in history if v is not None]
     series = full[-_MONTH_SESSIONS:]
-    if len(series) < 2:
-        return None
     n = len(series)
-    win_dates = (dates or [])[-len(full):][-n:]  # align dates to the clamped window
+    win_dates = (ten_year_dates or [])[-len(full):][-n:]
 
-    fig, ax = _new_axes(5.0, 2.8)
-    rising = series[-1] >= series[0]
-    ax.plot(range(n), series, color=BLUE, linewidth=1.8)
-    ax.fill_between(range(n), series, min(series), color=(GREEN if rising else RED), alpha=0.08)
+    fig, ax = _new_axes(5.4, 2.7)
+    ax.plot(range(n), series, color=BLUE, linewidth=2.0)
+    ax.fill_between(range(n), series, min(series) - (max(series) - min(series) or 0.01),
+                    color=BLUE, alpha=0.06)
     span = _date_xaxis(ax, win_dates, n)
-    _titled(ax, "WTI crude oil, past month",
-            "Front-month futures, daily close" + (f"  ·  {span}" if span else ""))
-    ax.set_ylabel("USD / barrel", color=GREY, fontsize=8, **_CHART_FONT)
-    # Annotate both endpoints so the move is legible at a glance.
-    ax.annotate(f"${series[0]:,.0f}", (0, series[0]), textcoords="offset points",
+    _titled(ax, "10-year Treasury yield, past month",
+            "Daily close" + (f"  ·  {span}" if span else ""))
+    ax.set_ylabel("Yield (%)", color=GREY, fontsize=8, **_CHART_FONT)
+    ax.annotate(f"{series[0]:.2f}%", (0, series[0]), textcoords="offset points",
                 xytext=(2, 6), ha="left", color=GREY, fontsize=8)
-    ax.annotate(f"${series[-1]:,.2f}", (n - 1, series[-1]), textcoords="offset points",
+    ax.annotate(f"{series[-1]:.2f}%", (n - 1, series[-1]), textcoords="offset points",
                 xytext=(-2, 6), ha="right", color=INK, fontsize=9, fontweight="bold")
+    _pad_ylim(ax, series)
     fig.tight_layout()
-    pct = (series[-1] - series[0]) / series[0] * 100.0 if series[0] else 0.0
-    summary = (f"WTI crude, past month: ${series[-1]:,.2f}, "
-               f"{'up' if rising else 'down'} {abs(pct):.1f}% from ${series[0]:,.2f}")
-    return Chart(cid=cid, png=_to_png(fig), title="WTI crude", summary=summary)
+    bps = (series[-1] - series[0]) * 100.0
+    summary = (f"10-year Treasury yield, past month: {series[-1]:.2f}%, "
+               f"{'up' if bps >= 0 else 'down'} {abs(bps):.0f} bps from {series[0]:.2f}%")
+    return Chart(cid=cid, png=_to_png(fig), title="10-year yield", summary=summary)
+
+
+# The three commodity legs of the normalized chart: key -> (display label, color).
+# WTI is the blue accent; gold and copper get distinct earthy tones so three lines
+# stay legible without leaning on the green/red direction palette.
+_COMMODITY_LEGS: tuple[tuple[str, str, str], ...] = (
+    ("wti", "WTI crude", BLUE),
+    ("gold", "Gold", "#B0892F"),
+    ("copper", "Copper", "#b06a3a"),
+)
+
+
+def _rebased(series: list[float]) -> Optional[list[float]]:
+    """Rebase a clamped series to 100 at its first point. None if unusable."""
+    clean = [v for v in series if v is not None]
+    window = clean[-_MONTH_SESSIONS:]
+    if len(window) < 2 or not window[0]:
+        return None
+    base = window[0]
+    return [v / base * 100.0 for v in window]
+
+
+def commodities_normalized(
+    histories: dict[str, list[float]],
+    *,
+    dates: Optional[dict[str, list[str]]] = None,
+    cid: str = "chart_commodities",
+) -> Optional[Chart]:
+    """WTI, gold, and copper rebased to 100 ~a month ago — relative performance.
+
+    One normalized chart so the three read as relative moves off a shared base of
+    100, not three different price scales (the human's design). Each leg is clamped
+    to the trailing ~21 sessions and rebased to its own first point. Returns None
+    when no leg can be drawn honestly. The returned summary is a Python-computed,
+    accuracy-safe takeaway used as the chart read.
+    """
+    dates = dates or {}
+    fig, ax = _new_axes(5.6, 2.9)
+    drawn: list[tuple[str, list[float]]] = []
+    span = ""
+    for key, label, color in _COMMODITY_LEGS:
+        rebased = _rebased(histories.get(key, []))
+        if rebased is None:
+            continue
+        n = len(rebased)
+        ax.plot(range(n), rebased, color=color, linewidth=1.9, label=label)
+        ax.annotate(f"{rebased[-1]:.0f}", (n - 1, rebased[-1]), textcoords="offset points",
+                    xytext=(4, 0), ha="left", va="center", color=color, fontsize=8, fontweight="bold")
+        drawn.append((label, rebased))
+        if not span:
+            full = [v for v in histories.get(key, []) if v is not None]
+            win_dates = (dates.get(key, []) or [])[-len(full):][-n:]
+            span = _date_xaxis(ax, win_dates, n)
+
+    if not drawn:
+        plt.close(fig)
+        return None
+
+    ax.axhline(100, color=GREY, linewidth=0.8, linestyle=(0, (3, 3)))
+    _titled(ax, "Commodities, rebased to 100 (past month)",
+            "Relative performance, daily close" + (f"  ·  {span}" if span else ""))
+    ax.set_ylabel("Index (start = 100)", color=GREY, fontsize=8, **_CHART_FONT)
+    ax.legend(loc="upper left", fontsize=7, frameon=False, prop={"family": "monospace"})
+    fig.tight_layout()
+
+    bits = [f"{label} {rebased[-1] - 100.0:+.1f}%" for label, rebased in drawn]
+    summary = "Commodities rebased to 100 (past month): " + ", ".join(bits)
+    return Chart(cid=cid, png=_to_png(fig), title="Commodities", summary=summary)
+
+
+# --------------------------------------------------------------------------- #
+# Python-computed chart takeaways ("what this tells you") — accuracy-safe (§1).
+# Every figure here is computed straight from the data; the model writes none of
+# it, so a chart's one-line read can never carry a wrong number.
+# --------------------------------------------------------------------------- #
+def _range_position(series: list[float]) -> str:
+    """Where the latest point sits in the window's range: top / bottom / middle."""
+    lo, hi = min(series), max(series)
+    if hi == lo:
+        return "flat across"
+    frac = (series[-1] - lo) / (hi - lo)
+    if frac >= 0.8:
+        return "near the top of"
+    if frac <= 0.2:
+        return "near the bottom of"
+    return "in the middle of"
+
+
+def ten_year_takeaway(
+    *, ten_year: Optional[float], ten_year_history: list[float],
+) -> str:
+    """A read for the 10-year trend chart: level, week move (bps), range position."""
+    full = [v for v in ten_year_history if v is not None]
+    series = full[-_MONTH_SESSIONS:]
+    if ten_year is None or len(series) < 2:
+        return ""
+    week_bps = None
+    if len(series) >= 6:
+        week_bps = (series[-1] - series[-6]) * 100.0
+    pos = _range_position(series)
+    parts = [f"The 10-year sits at {ten_year:.2f}%"]
+    if week_bps is not None:
+        if abs(week_bps) < 0.5:
+            parts.append("little changed on the week")
+        else:
+            parts.append(f"{'up' if week_bps > 0 else 'down'} {abs(week_bps):.0f} bps on the week")
+    parts.append(f"and {pos} its past-month range")
+    return ", ".join(parts) + "."
+
+
+def commodities_takeaway(histories: dict[str, list[float]]) -> str:
+    """A read for the normalized commodities chart: each leg's month move."""
+    moves: list[tuple[str, float]] = []
+    for key, label, _ in _COMMODITY_LEGS:
+        rebased = _rebased(histories.get(key, []))
+        if rebased is None:
+            continue
+        moves.append((label, rebased[-1] - 100.0))
+    if not moves:
+        return ""
+    leader = max(moves, key=lambda m: m[1])
+    laggard = min(moves, key=lambda m: m[1])
+    legs = ", ".join(f"{label} {chg:+.1f}%" for label, chg in moves)
+    read = f"Rebased to 100 a month ago: {legs}."
+    if leader[0] != laggard[0]:
+        read += f" {leader[0]} leads and {laggard[0]} lags over the month."
+    return read

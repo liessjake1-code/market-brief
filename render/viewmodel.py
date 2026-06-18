@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
+from engine import stats as stats_mod
 from engine.metrics import METRICS_BY_KEY, is_yield
 from render import source_links
 from sources.quality import Field
@@ -109,6 +110,11 @@ class SectionView:
     chart_cid: Optional[str] = None
     chart_caption: str = ""
     chart_caption_url: str = ""
+    # A Python-computed one-line read of the chart (accuracy-safe; no model number).
+    chart_takeaway: str = ""
+    # The session/week/month stat table shown at the TOP of the section box, before
+    # the prose (redesign "Visuals + macro"). Empty for sections with no metrics.
+    stat_table: tuple[stats_mod.StatRow, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -180,6 +186,85 @@ def _glance_figures(
         figure_for(fields[k], direction=directions.get(k, "flat"), short=True)
         for k in keys if k in fields
     )
+
+
+# Which metrics each section's stat table shows, in display order (redesign).
+# rates_and_dollar carries the macro additions as NUMBERS (not extra chart lines):
+# the policy rate, both inflation rates, and the high-yield credit spread, plus a
+# synthetic 2s10s spread row. commodities adds copper.
+SECTION_STAT_METRICS: dict[str, tuple[str, ...]] = {
+    "us_equities": ("sp500", "nasdaq", "dow", "russell"),
+    "rates_and_dollar": ("ust10y", "ust2y", "dxy", "fed_funds",
+                         "cpi_yoy", "pce_yoy", "hy_spread"),
+    "commodities": ("wti", "gold", "copper"),
+    "crypto": ("btc", "eth"),
+    "volatility_breadth": ("vix",),
+}
+
+
+def build_stat_tables(
+    values: dict[str, Optional[float]],
+    histories: dict[str, list[float]],
+) -> dict[str, tuple[stats_mod.StatRow, ...]]:
+    """Build the per-section stat-table rows from current values + history.
+
+    Pure pass-through to engine.stats, one table per section in SECTION_STAT_METRICS.
+    The 2s10s spread is appended to the rates table as a synthetic row when both
+    legs are present, so the curve shape reads as a number (the human asked for the
+    spread as a NUMBER, not an extra chart line).
+    """
+    out: dict[str, tuple[stats_mod.StatRow, ...]] = {}
+    for section_id, metrics in SECTION_STAT_METRICS.items():
+        table = stats_mod.stat_table(metrics, values, histories)
+        rows = list(table.rows)
+        if section_id == "rates_and_dollar":
+            spread = _spread_row(values, histories)
+            if spread is not None:
+                rows.insert(2, spread)   # after 10Y/2Y, before DXY
+        out[section_id] = tuple(rows)
+    return out
+
+
+def _spread_row(
+    values: dict[str, Optional[float]],
+    histories: dict[str, list[float]],
+) -> Optional[stats_mod.StatRow]:
+    """A synthetic 2s10s spread stat row (10Y minus 2Y, in basis points).
+
+    The level is the current spread in bps; the session/week/month cells are the
+    change in that spread (a bps delta), computed from the parallel yield histories.
+    Returns None when either leg is missing.
+    """
+    ten, two = values.get("ust10y"), values.get("ust2y")
+    if ten is None or two is None:
+        return None
+    th, twoh = histories.get("ust10y", []), histories.get("ust2y", [])
+    spread_hist = _paired_spread_history(th, twoh)
+    level_bps = (ten - two) * 100.0
+    return stats_mod.StatRow(
+        label="2s10s spread",
+        level=f"{level_bps:+.0f} bps",
+        session=stats_mod._cell(_spread_change(spread_hist, 1), "ust10y"),
+        week=stats_mod._cell(_spread_change(spread_hist, stats_mod.ctx_mod.WEEK_SESSIONS), "ust10y"),
+        month=stats_mod._cell(_spread_change(spread_hist, stats_mod.ctx_mod.MONTH_SESSIONS), "ust10y"),
+    )
+
+
+def _paired_spread_history(ten: list[float], two: list[float]) -> list[float]:
+    """The 2s10s spread (in percent) per session where both legs exist, aligned to
+    the most recent N closes."""
+    n = min(len(ten), len(two))
+    if n == 0:
+        return []
+    ten_t, two_t = ten[-n:], two[-n:]
+    return [a - b for a, b in zip(ten_t, two_t) if a is not None and b is not None]
+
+
+def _spread_change(spread_hist: list[float], sessions: int) -> Optional[float]:
+    """Change in the 2s10s spread over `sessions`, in basis points."""
+    if len(spread_hist) < sessions + 1:
+        return None
+    return (spread_hist[-1] - spread_hist[-(sessions + 1)]) * 100.0
 
 
 # Which metrics ground each At-a-Glance row (spec §4.1 row order).
@@ -291,6 +376,7 @@ def build_sections(
     favicon_tickers: Optional[dict[str, list[dict]]] = None,
     cited_by_section: Optional[dict[str, tuple[dict, ...]]] = None,
     section_charts: Optional[dict[str, dict]] = None,
+    stat_tables: Optional[dict[str, tuple[stats_mod.StatRow, ...]]] = None,
     hbars: tuple[HBar, ...] = (),
     hbar_maxabs: float = 1.0,
     sparklines: tuple[Spark, ...] = (),
@@ -307,6 +393,7 @@ def build_sections(
     favicon_tickers = favicon_tickers or {}
     cited_by_section = cited_by_section or {}
     section_charts = section_charts or {}
+    stat_tables = stat_tables or {}
     out: list[SectionView] = []
     for section_id in order:
         if section_id in _BODY_SKIP:
@@ -330,5 +417,7 @@ def build_sections(
             chart_cid=chart.get("cid"),
             chart_caption=chart.get("caption", ""),
             chart_caption_url=chart.get("caption_url", ""),
+            chart_takeaway=chart.get("takeaway", ""),
+            stat_table=stat_tables.get(section_id, ()),
         ))
     return tuple(out)

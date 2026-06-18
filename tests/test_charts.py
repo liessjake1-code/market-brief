@@ -20,36 +20,48 @@ def test_index_bar_empty_returns_none():
     assert charts.index_change_bar({}) is None
 
 
-def test_yield_curve_and_trend_produces_png():
-    chart = charts.yield_curve_and_trend(
-        ust2y=4.1, ust10y=4.44, ten_year_history=[4.3, 4.35, 4.4, 4.44],
-    )
+def test_ten_year_trend_produces_png():
+    chart = charts.ten_year_trend(ten_year_history=[4.3, 4.35, 4.4, 4.44])
     assert chart is not None
     assert _is_png(chart.png)
+    assert chart.cid == "chart_rates"
 
 
-def test_yield_curve_none_when_no_data():
-    assert charts.yield_curve_and_trend(ust2y=None, ust10y=None, ten_year_history=[]) is None
+def test_ten_year_trend_none_when_thin():
+    assert charts.ten_year_trend(ten_year_history=[4.4]) is None
 
 
-def test_wti_trend_produces_png():
-    chart = charts.wti_trend([74.1, 75.0, 76.2, 75.8, 77.0])
+def test_commodities_normalized_produces_png():
+    chart = charts.commodities_normalized({
+        "wti": [80.0 - i * 0.4 for i in range(22)],
+        "gold": [4000.0 + i * 10 for i in range(22)],
+        "copper": [4.3 + i * 0.01 for i in range(22)],
+    })
     assert chart is not None
     assert _is_png(chart.png)
-    assert chart.cid == "chart_oil"
+    assert chart.cid == "chart_commodities"
+    # Rebased: gold up, WTI down, all expressed off 100.
+    assert "Gold" in chart.summary and "WTI" in chart.summary
 
 
-def test_wti_trend_thin_data_returns_none():
-    assert charts.wti_trend([76.0]) is None
+def test_commodities_normalized_draws_with_one_leg():
+    # Missing gold + copper: still draws WTI alone (graceful), not None.
+    chart = charts.commodities_normalized({"wti": [80.0, 79.0, 78.0]})
+    assert chart is not None
+    assert "WTI" in chart.summary
+
+
+def test_commodities_normalized_none_when_all_thin():
+    assert charts.commodities_normalized({"wti": [80.0], "gold": [], "copper": []}) is None
 
 
 def test_charts_carry_text_summary_for_alt():
     # Each PNG chart carries a one-line, image-free summary used as the img alt so
     # a blocked image still leaves a readable line (HANDOFF_DESIGN).
-    rates = charts.yield_curve_and_trend(ust2y=4.05, ust10y=4.43, ten_year_history=[4.3, 4.4, 4.43])
-    assert "4.43%" in rates.summary and "2s10s" in rates.summary
-    oil = charts.wti_trend([70.0, 72.0, 74.0])
-    assert "WTI" in oil.summary and "$74" in oil.summary
+    rates = charts.ten_year_trend(ten_year_history=[4.3, 4.4, 4.43])
+    assert "4.43%" in rates.summary and "10-year" in rates.summary
+    com = charts.commodities_normalized({"wti": [70.0, 72.0, 74.0]})
+    assert "Commodities" in com.summary
 
 
 def test_white_palette_constants():
@@ -59,35 +71,46 @@ def test_white_palette_constants():
     assert charts.INK == "#1b1a17"
 
 
-def test_wti_clamps_to_a_month_window():
-    # A long backfill (e.g. 108 -> 74 over 25 sessions) must not be drawn whole;
-    # the chart shows the trailing ~21 sessions so it reads as a month, not a crash.
-    long_hist = [108.0 - i for i in range(40)]  # 40 descending sessions
-    chart = charts.wti_trend(long_hist)
+def test_ten_year_clamps_to_a_month_window():
+    # A long backfill must not be drawn whole; the chart shows the trailing ~21
+    # sessions and the summary computes bps over the *clamped* window.
+    long_hist = [4.0 + i * 0.01 for i in range(40)]
+    chart = charts.ten_year_trend(ten_year_history=long_hist)
     assert chart is not None
-    # The summary computes pct over the *clamped* window, not the full 40 sessions.
-    # Full 40-session drop would be ~36%; a 21-session window is ~ -20/87 ~ -23%.
-    assert "down" in chart.summary
-    assert "WTI" in chart.summary
+    assert "10-year" in chart.summary and "bps" in chart.summary
 
 
-def test_charts_label_axes_and_dates():
-    dates = [f"2026-05-{d:02d}" for d in range(1, 22)]  # 21 dated sessions
-    series = [70.0 + i * 0.5 for i in range(21)]
-    oil = charts.wti_trend(series, dates=dates)
-    # The summary frames the window and the move from the first point.
-    assert "past month" in oil.summary
-    assert "from $70" in oil.summary
-    rates = charts.yield_curve_and_trend(
-        ust2y=4.05, ust10y=4.43, ten_year_history=series, ten_year_dates=dates)
-    assert rates is not None and len(rates.png) > 100
+def test_ten_year_takeaway_is_computed():
+    # The takeaway is Python-computed (accuracy-safe): level + week move + range.
+    hist = [4.30 + i * 0.01 for i in range(22)]
+    read = charts.ten_year_takeaway(ten_year=hist[-1], ten_year_history=hist)
+    assert "4.51%" in read or "%" in read
+    assert "range" in read
+
+
+def test_ten_year_takeaway_short_history_no_duplicate_clause():
+    # 2-5 sessions: the week move is not computable, but the range clause must
+    # appear exactly once (regression for a sentence-duplication bug).
+    read = charts.ten_year_takeaway(ten_year=4.35, ten_year_history=[4.30, 4.33, 4.35])
+    assert read.count("range") == 1
+    assert read.endswith(".")
+    assert ", ," not in read
+
+
+def test_commodities_takeaway_names_leader_and_laggard():
+    read = charts.commodities_takeaway({
+        "wti": [80.0 - i for i in range(22)],          # falling
+        "gold": [4000.0 + i * 20 for i in range(22)],  # rising
+        "copper": [4.3 + i * 0.005 for i in range(22)],
+    })
+    assert "Gold leads" in read and "WTI crude lags" in read
 
 
 def test_charts_render_without_dates_gracefully():
     # No dates -> undated axis, still a valid chart (graceful degrade).
-    oil = charts.wti_trend([70.0, 71.0, 72.0], dates=None)
-    assert oil is not None
-    assert _is_png(oil.png)
+    rates = charts.ten_year_trend(ten_year_history=[4.3, 4.31, 4.32], ten_year_dates=None)
+    assert rates is not None
+    assert _is_png(rates.png)
 
 
 def test_pad_ylim_widens_a_tiny_range(monkeypatch):

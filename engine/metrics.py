@@ -30,30 +30,66 @@ class Metric:
     label: str
     change_unit: str          # "pct" | "bps"
     history_source: str       # "yfinance" | "fred"
+    # True for rate/percent-LEVEL metrics whose trailing change is a basis-point
+    # delta of the level (yields, the policy rate, inflation rates, credit spread),
+    # not a percentage change of a price. Defaults from change_unit == "bps".
+    rate_like: bool = False
+    # Whether the metric is part of the core data set the health check requires.
+    # The macro additions (copper, inflation, policy rate, credit spread) are all
+    # OPTIONAL: they never trip the degraded banner or the hard floor (spec §7.5).
+    optional: bool = False
+    # Value display formatter hint: "index" (no decimals), "price" (2 dp), or
+    # "rate" (2 dp + % suffix). Drives _fmt_value across the render layer.
+    display: str = "price"
 
 
-# Order matches the Part 4.1 schema for readable, diffable state files.
+# Order matches the Part 4.1 schema for readable, diffable state files. The first
+# twelve are the original core metrics; the macro additions follow (all optional).
 METRICS: tuple[Metric, ...] = (
-    Metric("sp500", "S&P 500", "pct", "yfinance"),
-    Metric("nasdaq", "Nasdaq Composite", "pct", "yfinance"),
-    Metric("dow", "Dow Jones", "pct", "yfinance"),
-    Metric("russell", "Russell 2000", "pct", "yfinance"),
-    Metric("vix", "VIX", "pct", "yfinance"),
-    Metric("wti", "WTI crude", "pct", "yfinance"),
-    Metric("gold", "Gold", "pct", "yfinance"),
-    Metric("dxy", "US Dollar Index", "pct", "yfinance"),
-    Metric("ust10y", "10-year Treasury", "bps", "fred"),
-    Metric("ust2y", "2-year Treasury", "bps", "fred"),
-    Metric("btc", "Bitcoin", "pct", "yfinance"),
-    Metric("eth", "Ethereum", "pct", "yfinance"),
+    Metric("sp500", "S&P 500", "pct", "yfinance", display="index"),
+    Metric("nasdaq", "Nasdaq Composite", "pct", "yfinance", display="index"),
+    Metric("dow", "Dow Jones", "pct", "yfinance", display="index"),
+    Metric("russell", "Russell 2000", "pct", "yfinance", display="index"),
+    Metric("vix", "VIX", "pct", "yfinance", display="price"),
+    Metric("wti", "WTI crude", "pct", "yfinance", display="price"),
+    Metric("gold", "Gold", "pct", "yfinance", display="index"),
+    Metric("dxy", "US Dollar Index", "pct", "yfinance", display="price"),
+    Metric("ust10y", "10-year Treasury", "bps", "fred", rate_like=True, display="rate"),
+    Metric("ust2y", "2-year Treasury", "bps", "fred", rate_like=True, display="rate"),
+    Metric("btc", "Bitcoin", "pct", "yfinance", display="index"),
+    Metric("eth", "Ethereum", "pct", "yfinance", display="index"),
+    # --- Macro additions (all optional, free; spec accuracy rules unchanged) --- #
+    Metric("copper", "Copper", "pct", "yfinance", display="price", optional=True),
+    Metric("cpi_yoy", "CPI inflation (YoY)", "bps", "fred", rate_like=True,
+           optional=True, display="rate"),
+    Metric("pce_yoy", "PCE inflation (YoY)", "bps", "fred", rate_like=True,
+           optional=True, display="rate"),
+    Metric("fed_funds", "Fed funds rate", "bps", "fred", rate_like=True,
+           optional=True, display="rate"),
+    Metric("hy_spread", "High-yield credit spread", "bps", "fred", rate_like=True,
+           optional=True, display="rate"),
 )
 
 METRIC_KEYS: tuple[str, ...] = tuple(m.key for m in METRICS)
 METRICS_BY_KEY: dict[str, Metric] = {m.key: m for m in METRICS}
 
-# Yields carry change_bps; everything else carries change_pct (Part 4.1).
+# Yields carry change_bps; everything else carries change_pct (Part 4.1). The
+# rate-like macro metrics also carry change_bps (a delta of a percent level).
 YIELD_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.change_unit == "bps")
+RATE_LIKE_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.rate_like)
+OPTIONAL_KEYS: frozenset[str] = frozenset(m.key for m in METRICS if m.optional)
 
 
 def is_yield(key: str) -> bool:
-    return key in YIELD_KEYS
+    """Trailing change is a basis-point delta of a percent level, not a price %.
+
+    Originally only the two Treasury yields; now also the policy rate, the two
+    inflation rates, and the credit spread, which are all percent-level series
+    whose week/month move reads naturally in basis points.
+    """
+    return key in RATE_LIKE_KEYS
+
+
+def is_optional(key: str) -> bool:
+    """Optional metric: never enters the core health check (spec §7.5)."""
+    return key in OPTIONAL_KEYS
