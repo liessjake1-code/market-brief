@@ -3,7 +3,7 @@
   "sections": {
     "us_equities": {
       "section_id": "us_equities",
-      "prose": "Stocks rebounded broadly after the United States and Iran signed an interim agreement to wind down the war, which analysts described as a major positive signal for equity markets.",
+      "prose": "Stocks rallied broadly after the United States and Iran signed an interim peace deal, with the agreement easing geopolitical tensions and lifting sentiment across risk assets.",
       "cause_source_id": "wsj-22",
       "confidence": "high",
       "templated": false,
@@ -16,7 +16,7 @@
     },
     "rates_and_dollar": {
       "section_id": "rates_and_dollar",
-      "prose": "The dollar rose and Treasury yields were supported after the Federal Reserve held rates unchanged in a unanimous decision at Kevin Warsh's first meeting as chairman, while traders began pricing growing odds of a rate hike later in the year.",
+      "prose": "Treasury yields and the dollar rose after the Federal Reserve held rates unchanged in a unanimous decision at Kevin Warsh's first meeting as chairman, while market participants began pricing growing odds of a rate hike later in the year.",
       "cause_source_id": "wsj-39",
       "confidence": "high",
       "templated": false,
@@ -29,8 +29,8 @@
     },
     "commodities": {
       "section_id": "commodities",
-      "prose": "Oil fell sharply after Trump signed a deal to reopen the Strait of Hormuz, easing supply disruption fears, with Saudi tankers immediately resuming transit through the strait signaling a rapid normalization of crude flows. Gold retreated as geopolitical risk receded alongside the Iran agreement.",
-      "cause_source_id": "wsj-19",
+      "prose": "Oil fell sharply after President Trump signed a deal to reopen the Strait of Hormuz, with Saudi tankers immediately resuming transit and the IEA warning that a lasting resolution could trigger a major supply overhang, while gold eased as geopolitical fear receded.",
+      "cause_source_id": "wsj-20",
       "confidence": "high",
       "templated": false,
       "cited_sources": [
@@ -50,7 +50,7 @@
     },
     "volatility_breadth": {
       "section_id": "volatility_breadth",
-      "prose": "Fear gauges eased as the Iran deal reduced the geopolitical uncertainty that had been driving hedging demand, with oil supply fears cooling and gasoline prices falling in response to the Strait of Hormuz reopening.",
+      "prose": "Fear gauges eased as the US-Iran peace deal reduced geopolitical uncertainty and oil supply fears, pulling hedging demand lower.",
       "cause_source_id": "cnbc-14",
       "confidence": "medium",
       "templated": false,
@@ -64,18 +64,18 @@
   },
   "raw_model_output": {
     "us_equities": {
-      "cause": "Stocks rebounded broadly after the United States and Iran signed an interim agreement to wind down the war, which analysts described as a major positive signal for equity markets.",
+      "cause": "Stocks rallied broadly after the United States and Iran signed an interim peace deal, with the agreement easing geopolitical tensions and lifting sentiment across risk assets.",
       "cause_source_id": "wsj-22",
       "confidence": "high"
     },
     "rates_and_dollar": {
-      "cause": "The dollar rose and Treasury yields were supported after the Federal Reserve held rates unchanged in a unanimous decision at Kevin Warsh's first meeting as chairman, while traders began pricing growing odds of a rate hike later in the year.",
+      "cause": "Treasury yields and the dollar rose after the Federal Reserve held rates unchanged in a unanimous decision at Kevin Warsh's first meeting as chairman, while market participants began pricing growing odds of a rate hike later in the year.",
       "cause_source_id": "wsj-39",
       "confidence": "high"
     },
     "commodities": {
-      "cause": "Oil fell sharply after Trump signed a deal to reopen the Strait of Hormuz, easing supply disruption fears, with Saudi tankers immediately resuming transit through the strait signaling a rapid normalization of crude flows. Gold retreated as geopolitical risk receded alongside the Iran agreement.",
-      "cause_source_id": "wsj-19",
+      "cause": "Oil fell sharply after President Trump signed a deal to reopen the Strait of Hormuz, with Saudi tankers immediately resuming transit and the IEA warning that a lasting resolution could trigger a major supply overhang, while gold eased as geopolitical fear receded.",
+      "cause_source_id": "wsj-20",
       "confidence": "high"
     },
     "crypto": {
@@ -84,7 +84,7 @@
       "confidence": "low"
     },
     "volatility_breadth": {
-      "cause": "Fear gauges eased as the Iran deal reduced the geopolitical uncertainty that had been driving hedging demand, with oil supply fears cooling and gasoline prices falling in response to the Strait of Hormuz reopening.",
+      "cause": "Fear gauges eased as the US-Iran peace deal reduced geopolitical uncertainty and oil supply fears, pulling hedging demand lower.",
       "cause_source_id": "cnbc-14",
       "confidence": "medium"
     }
