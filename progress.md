@@ -11,17 +11,36 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
-- **Current phase:** Phase 0 (test send) — manual run proven; awaiting ~2-3
-  mornings of scheduled cron firing to fully close the gate.
-- **Next phase to build:** Phase 1 (Safety net) — NOT started. Do not start until
-  the Phase 0 gate is fully met and the human gives the go-ahead.
+- **Current phase:** Phase 1 (Safety net) — DONE and validated (2026-06-17).
+  Built from the single-file HANDOFF and merged into this repo, keeping the
+  existing docs/, CLAUDE.md, .gitignore, and the populated data/*.yaml.
+- **Next phase to build:** Phase 2 (State caching + first-run backfill) — NOT
+  started.
 - **Repo:** https://github.com/liessjake1-code/market-brief (public, `main` branch).
-- **Local path:** /Users/jakeliess/market-brief
+- **Local path:** /Users/jakeliess/market-brief (this repo);
+  also /Users/jakeliess/market-briefv2 (the single-file HANDOFF working copy).
 - **Today's date at setup:** 2026-06-17
 
 ---
 
 ## Done
+
+### Track B (Claude Code) — Phase 1: Safety net (2026-06-17)
+- [x] Pinned the two load-bearing deps in `requirements.txt`:
+      `yfinance==1.4.1`, `anthropic==0.109.2` (resolved from PyPI at build time).
+- [x] `config.yaml` created with the spec toggles; secrets stay in env only.
+- [x] `brief.py` entry point with `--no-send` => NO state write wired in from
+      the start (`write_state = not args.no_send`, decided once). The no-send
+      preview output uses a gitignored name.
+- [x] `.github/workflows/smoke-test.yml` (build-without-send on
+      `workflow_dispatch`; read-only data keys only, no SMTP secrets on it).
+- [x] Phase-tagged stub modules for every later-phase file (sources/, engine/,
+      render/) — each raises NotImplementedError so nothing fakes data.
+- [x] Validated: config loads, `--no-send`=>write_state False / default=>True,
+      `brief.py --no-send` reaches the pipeline and stops with the explicit
+      "not built yet" error (no crash, no fake data).
+- [x] Kept the existing populated `data/*.yaml` and the thorough `.gitignore`;
+      did NOT overwrite them with the single-file HANDOFF's empty placeholders.
 
 ### Environment / setup
 - [x] Read all 5 docs in full (START_HERE, CLAUDE.md, spec, roadmap, execution guide).

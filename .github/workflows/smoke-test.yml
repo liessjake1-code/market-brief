@@ -1,0 +1,23 @@
+name: Smoke Test
+# Manual build-without-send check (Section 9, Phase 1; Section 10.1).
+# Validates the build path without emailing. Also the quarterly hook for
+# bumping the yfinance/anthropic pins against a fresh install (Section 12).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python brief.py --no-send
+        env:
+          # Read-only data keys only; no SMTP/send secrets on the smoke path.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}

@@ -1,0 +1,15 @@
+# Load-bearing pins (Section 3): a silent breaking change at send time or a
+# major SDK bump is the year-two failure we guard against. Bump deliberately on
+# the quarterly smoke-test pass, never blindly.
+yfinance==1.4.1
+anthropic==0.109.2
+
+# Unpinned: lower-risk, allowed to float.
+pandas
+requests
+matplotlib
+feedparser
+jinja2
+python-dateutil
+pandas-market-calendars
+pyyaml

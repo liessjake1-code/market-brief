@@ -1,0 +1,53 @@
+# Daily Market Brief configuration (Section 10.3).
+# Recipient/sender are the EMAIL_TO / EMAIL_FROM Secrets, NOT config.
+# Secrets are never stored here; only toggles and non-secret config live here.
+
+send_time: "08:30"
+send_window_end: "09:15"
+timezone: "America/Chicago"
+
+resilience:
+  degraded_stale_threshold: 2
+  hard_floor_missing_threshold: 4
+  second_price_source: true
+  second_price_provider: "stooq"   # "stooq" (no key, low quota) or "twelvedata" (key, no free indices)
+
+monitoring:
+  heartbeat_enabled: true
+  heartbeat_cutoff: "10:00"
+  heartbeat_channel: "github"      # "github" or "telegram"
+
+narrative:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  articles_per_section: 3
+  use_article_bodies: false
+  number_tolerance_pct: 0.05
+
+charts:
+  index_bar: true
+  yield_curve: true
+  oil_trend: true
+  vix_trend: false
+  movers_bar: false
+  crypto_trend: false
+  data_scorecard: false
+  watchlist_sparklines: true
+
+sections:
+  breadth: false
+
+movers_universe:
+  - AAPL
+  - NVDA
+  - MSFT
+  - AMD
+  - TSLA
+
+movers_min_volume: 50000
+
+watchlist: []              # the human populates this; ships as placeholder until then
+
+ticker_domains:
+  NVDA: nvidia.com
+  AMD: amd.com
