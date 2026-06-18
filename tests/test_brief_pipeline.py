@@ -40,3 +40,27 @@ def test_clean_no_send_exits_zero_and_writes_no_state(monkeypatch):
     monkeypatch.setattr(B, "_gather_fields", lambda: _fields())
     rc = B.build_brief(send=False, today=date(2026, 6, 17))
     assert rc == B.EXIT_OK
+
+
+def test_commit_state_stamps_history_date_per_close(monkeypatch, tmp_path):
+    # On a real (sending) run, each appended close gets today's date stamped in
+    # lockstep so the chart x-axis is dated from real data going forward.
+    from engine import state as S
+
+    repo = str(tmp_path)
+    monkeypatch.setattr(S, "state_path", lambda repo_root=None: f"{repo}/last_run.json")
+    # Seed a small committed baseline.
+    seeded = S.backfill(lambda days: {k: [100.0, 101.0] for k in __import__(
+        "engine.metrics", fromlist=["METRIC_KEYS"]).METRIC_KEYS}, days=2)
+    S.save_state(seeded, repo_root=repo)
+    monkeypatch.setattr(B.state_mod, "commit_state_back", lambda **k: False)
+    monkeypatch.delenv("MARKET_BRIEF_OFFLINE", raising=False)
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")  # backfill path no-op; load existing
+
+    B._commit_state(send=True, today=date(2026, 6, 18), fields=_fields())
+
+    loaded = S.load_state(repo, today=date(2026, 6, 18))
+    hist = loaded.history("sp500")
+    dates = loaded.history_dates("sp500")
+    assert len(dates) == len(hist)          # aligned 1:1
+    assert dates[-1] == "2026-06-18"        # today stamped on the new close

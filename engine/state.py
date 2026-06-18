@@ -60,6 +60,15 @@ class State:
     def history(self, key: str) -> list[float]:
         return list(self.metrics.get(key, {}).get("history", []))
 
+    def history_dates(self, key: str) -> list[str]:
+        """ISO dates parallel to history(key); empty if not yet recorded.
+
+        Backward compatible: state files written before the dates schema simply
+        have no history_dates, so this returns [] and charts fall back to an
+        undated axis until dates accrue (or a one-time seed backfills them).
+        """
+        return list(self.metrics.get(key, {}).get("history_dates", []))
+
 
 # --------------------------------------------------------------------------- #
 # Load
@@ -104,7 +113,7 @@ def _empty_state() -> dict:
 
 
 def _empty_metric(key: str) -> dict:
-    m = {"close": None, "prev_close": None, "history": []}
+    m = {"close": None, "prev_close": None, "history": [], "history_dates": []}
     m["change_bps" if is_yield(key) else "change_pct"] = None
     return m
 
@@ -187,11 +196,37 @@ def backfill(
         closes = list(pulled.get(key, []))[-HISTORY_KEEP:]
         metric = _empty_metric(key)
         metric["history"] = closes
+        # One-time date seed for the backfilled closes via the trading calendar.
+        # These are approximate (the data carries no real dates), but they let the
+        # chart x-axis be dated immediately; they age out as real dated closes
+        # replace them. Returns [] if the calendar is unavailable -> undated axis.
+        metric["history_dates"] = _seed_session_dates(len(closes), date.today())
         if closes:
             metric["close"] = closes[-1]
             metric["prev_close"] = closes[-2] if len(closes) >= 2 else None
         data["metrics"][key] = metric
     return State(data=data, path=state_path(), missing=False, stale=False)
+
+
+def _seed_session_dates(n: int, last_session: date) -> list[str]:
+    """ISO dates for `n` NYSE sessions ending at `last_session` (one-time seed).
+
+    A labeling aid for backfilled closes that carry no real date. Never changes a
+    value. Degrades to [] when the calendar is unavailable, so charts fall back to
+    an undated axis rather than guessing. Real dates are stamped on each later run.
+    """
+    if n <= 0:
+        return []
+    try:
+        import pandas_market_calendars as mcal
+
+        nyse = mcal.get_calendar("XNYS")
+        start = last_session - timedelta(days=n * 2 + 20)
+        sched = nyse.schedule(start_date=start, end_date=last_session)
+        days = [ts.date().isoformat() for ts in sched.index]
+    except Exception:
+        return []
+    return days[-n:] if len(days) >= n else []
 
 
 # --------------------------------------------------------------------------- #
@@ -211,6 +246,9 @@ def save_state(state: State, *, repo_root: Optional[str] = None) -> str:
         metric = data.get("metrics", {}).get(key)
         if metric and isinstance(metric.get("history"), list):
             metric["history"] = metric["history"][-HISTORY_KEEP:]
+            # Trim dates in lockstep so history[i] and history_dates[i] stay aligned.
+            if isinstance(metric.get("history_dates"), list):
+                metric["history_dates"] = metric["history_dates"][-HISTORY_KEEP:]
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

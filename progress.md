@@ -81,6 +81,33 @@ of secrets and whether they are set.
   New files: engine/context.py, tests/test_context.py. NOTE: charts + real prose only
   populate fully on a non-degraded run with committed history; the next real send is
   where the human confirms the narrative un-degrade landed.
+- **CHART OVERHAUL + DATED AXIS (2026-06-18):** Human said the charts "look weird,"
+  have no axis labels/explanation, and asked for interactive/expandable charts.
+  Interactive-in-email is IMPOSSIBLE (Outlook strips JS/iframes/web components), so
+  the agreed answer: best-quality static charts that CLICK THROUGH to the live,
+  zoomable Yahoo/FRED page. Shipped on build/phases (188 tests green, +6):
+  1. STATE SCHEMA BUMP (backward compatible): each metric gains history_dates[]
+     parallel to history[]. save_state trims both in lockstep; _commit_state stamps
+     today's ISO date per appended close; backfill seeds approximate dates via the
+     NYSE calendar (pandas-market-calendars, already pinned) so the x-axis is dated
+     IMMEDIATELY. Old state files without history_dates still load (returns []).
+     The dated axis is "good now" (one-time calendar seed for old points) and 100%
+     real stored dates within ~a month as seeded points age out. last_run.json now
+     carries a history_dates list per metric.
+  2. charts.py overhaul: every PNG chart now has a left-aligned title, a grey
+     "what it shows" subtitle (e.g. "Front-month futures, daily close · May 20 -
+     Jun 18"), a DATED x-axis (real dates, ~4 ticks), a unit-labeled y-axis
+     (USD/barrel, Yield %), and annotated start/end values. WTI clamped to the
+     trailing 21 sessions; yield curve shows the 2s10s spread.
+  3. CLICKABLE: the chart <img> is wrapped in an <a> to the live interactive page
+     (FRED DGS10 / Yahoo CL=F chart); caption reads "Source: ... · View live
+     interactive chart ->". This is the "expand in/out" experience the human wanted,
+     delivered via click-through since email can't host an interactive chart.
+  New files: none (engine/sessions.py was started then removed as over-engineered;
+  date seeding lives in state.py). preview_fixture.py now inlines the real WTI chart
+  as a data-URI so the browser preview shows the actual chart (cid: only resolves in
+  an email client). Decision trail: interactive charts in email are not possible;
+  YTD/1-year context deferred (would need a much larger committed state file).
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test

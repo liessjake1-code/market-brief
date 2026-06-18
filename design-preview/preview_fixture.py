@@ -92,7 +92,9 @@ def build_view():
                 "geopolitical bid; gold pushed to a record $4,247 on the same rate-cut hopes. "
                 "Softer oil takes some pressure off the inflation read the Fed watches.",
                 sources=({"label": "Reuters: Oil slips on US crude build",
-                          "url": "https://www.reuters.com/business/energy/"},)),
+                          "url": "https://www.reuters.com/business/energy/"},),
+                chart={"cid": "chart_oil", "caption": "Source: Yahoo Finance (CL=F)",
+                       "caption_url": "https://finance.yahoo.com/chart/CL=F"}),
         section("washington", "No market-moving policy news flagged this morning. The shutdown "
                 "deadline is three weeks out and tariff headlines were quiet. No clear catalyst "
                 "flagged. The long end is the swing factor into the next data print."),
@@ -148,8 +150,27 @@ def main():
     )
     tmpl = env.get_template(template_path.name)
     html = tmpl.render(view=view, text_rows=view.text_rows)
+    # For a BROWSER preview, cid: URLs don't resolve, so render the real WTI chart
+    # and inline it as a data-URI so the screenshot shows the actual chart image.
+    html = _inline_demo_chart(html)
     out.write_text(html)
     print("WROTE", out, len(html), "chars")
+
+
+def _inline_demo_chart(html: str) -> str:
+    import base64
+    try:
+        from render import charts
+        series = [93.89, 89.0, 88.9, 87.6, 92.1, 94.2, 96.2, 93.1, 91.0, 91.9,
+                  88.2, 90.1, 86.0, 84.5, 80.0, 76.1, 76.9, 73.9, 74.05, 75.05]
+        dates = [f"2026-05-{d:02d}" for d in range(20, 32)] + \
+                [f"2026-06-{d:02d}" for d in range(1, 9)]
+        chart = charts.wti_trend(series, dates=dates[:len(series)])
+        b64 = base64.b64encode(chart.png).decode()
+        return html.replace("cid:chart_oil", f"data:image/png;base64,{b64}")
+    except Exception as exc:  # preview is best-effort
+        print("  (chart inline skipped:", exc, ")")
+        return html
 
 
 if __name__ == "__main__":
