@@ -168,6 +168,16 @@ def test_idempotent_when_already_sent_today():
     assert "already sent" in d.reason
 
 
+def test_allow_repeat_send_bypasses_idempotency_guard():
+    # Same already-sent-today inputs, but the TEMPORARY test-iteration override
+    # lets it send again. Default behavior (above) is unchanged.
+    d = SCH.decide_send(send_time="08:30", send_window_end="09:15",
+                        last_sent_date="2026-06-17", now=_ct(8, 35),
+                        allow_repeat_send=True)
+    assert d.should_send
+    assert "already sent" not in d.reason
+
+
 def test_late_send_after_window_still_sends_flagged_late():
     d = SCH.decide_send(send_time="08:30", send_window_end="09:15",
                         last_sent_date=None, now=_ct(9, 40))

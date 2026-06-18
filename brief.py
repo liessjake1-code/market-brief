@@ -88,10 +88,14 @@ def build_brief(*, send: bool, today: date | None = None) -> int:
     html, inline_images = _build_html(cfg, today, report, prose_by_section)
 
     if send:
+        allow_repeat = bool(cfg.get("monitoring", {}).get("allow_repeat_send", False))
+        if allow_repeat:
+            print("  schedule: allow_repeat_send ON (idempotency guard bypassed — TEMPORARY)")
         decision = sch.decide_send(
             send_time=cfg["send_time"],
             send_window_end=cfg["send_window_end"],
             last_sent_date=_last_sent_date(),
+            allow_repeat_send=allow_repeat,
         )
         print(f"  schedule: {decision.reason}")
         if decision.should_send:
