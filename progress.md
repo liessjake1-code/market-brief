@@ -201,6 +201,40 @@ history; this entry covers the last phase.
 
 ---
 
+## Go-live punch list (Track A, post-build)
+
+### 1. Runner-side gate — DONE (2026-06-18)
+- `smoke-test.yml` GREEN on `build/phases`. Offline build + full pytest on the
+  3.12 runner. Closes the runner-side verification for all 7 build phases.
+
+### 2. Go-live secrets — DONE (2026-06-18)
+- All secrets the workflow reads are now set (names only, values never recorded):
+  STATE_COMMIT_PAT, ANTHROPIC_API_KEY, FRED_API_KEY, FMP_API_KEY, FINNHUB_API_KEY
+  (set, though optional), plus the Phase 0 SMTP_HOST/USER/PASS + EMAIL_FROM/TO.
+- TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID intentionally absent: heartbeat_channel
+  is "github", so the workflow's empty Telegram env vars are harmless.
+- STATE_COMMIT_PAT: fine-grained PAT, this repo only, Contents read+write,
+  90-day expiry. ROTATE before expiry (set a quarterly reminder) — when it lapses
+  the daily state commit-back silently fails.
+- Verified the set against `.github/workflows/daily-brief.yml`: complete, no gaps.
+
+### 3. Real watchlist in config.yaml — TODO
+- `watchlist: []` is still empty (most-skipped block, spec §13). Needs real
+  tickers + matching `ticker_domains` favicon entries before/at first send.
+
+### 4. First real production send — TODO
+- Trigger `daily-brief.yml` (workflow_dispatch, branch `build/phases`). Audit
+  every number vs its source page. Redo Outlook safe-senders if junked.
+
+### 5. Watch 2-3 scheduled mornings — TODO
+- Prove cron timing (Phase 0 unknown c). Record runner-IP finding. Decide second
+  price source (Decision 18; currently `second_price_provider: stooq`).
+
+### 6. Confirm heartbeat on a simulated miss — TODO
+- Dead-man's switch fires within a day on the independent (github) channel.
+
+---
+
 ## Next actions
 
 ### Human (Track A)
