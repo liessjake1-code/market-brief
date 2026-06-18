@@ -15,6 +15,16 @@ of secrets and whether they are set.
   (default branch, so the daily-brief.yml crons register and fire). Real sends
   land in the Tulane inbox. Now iterating on look + content quality before
   locking down. 149 tests green on py3.12.
+- **EMAIL REDESIGN IN PROGRESS (2026-06-18):** Human disliked the look; approved a
+  full redesign via visual previews -> see **HANDOFF_DESIGN.md** for all locked
+  decisions. New look is "The Tape" on WHITE (serif masthead/headings, IBM Plex
+  Mono numbers, inline hybrid charts, clickable per-section source citations).
+  Item 1 of 9 DONE + shipped: `narrative.SectionResult.cited_sources` resolves the
+  matched article {title,url} from the validated cause_source_id (commit 14def7b ->
+  main 764fd8d). Items 2-9 (rich computed fallback, WSJ/FT free feeds, viewmodel
+  threading, template port, hybrid charts, Outlook CID fix, tests) are pre-decided
+  in HANDOFF_DESIGN.md for a fresh chat. Preview loop (headless-Chrome screenshot of
+  the rendered template) is the iteration tool — no email send needed per change.
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test
