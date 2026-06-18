@@ -3,7 +3,7 @@
   "sections": {
     "us_equities": {
       "section_id": "us_equities",
-      "prose": "S&P 500 at 7,494, little changed on the session, down 0.2% on the week and up 0.3% on the month, closing higher for the 4th straight session. No clear catalyst flagged. Watch whether breadth confirms the move or it stays top-heavy.",
+      "prose": "S&P 500 at 7,487, little changed on the session, up 1.0% on the week and down 0.3% on the month, inside its recent range. No clear catalyst flagged. Watch whether breadth confirms the move or it stays top-heavy.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -11,7 +11,7 @@
     },
     "rates_and_dollar": {
       "section_id": "rates_and_dollar",
-      "prose": "10-year Treasury at 4.43%, little changed on the session, down 5 bps on the week and down 14 bps on the month, inside its recent range. No clear catalyst flagged. The long end is the swing factor into the next data print.",
+      "prose": "10-year Treasury at 4.43%, little changed on the session, down 4 bps on the week and down 14 bps on the month, inside its recent range. No clear catalyst flagged. The long end is the swing factor into the next data print.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -19,7 +19,7 @@
     },
     "commodities": {
       "section_id": "commodities",
-      "prose": "WTI crude at 75.80, higher about 1.4% on the session, down 1.3% on the week and down 22.3% on the month, closing higher for the 3rd straight session. No clear catalyst flagged. Watch the inventory and demand reads for the next leg.",
+      "prose": "WTI crude at 75.75, higher about 1.0% on the session, down 1.3% on the week and down 19.3% on the month, closing higher for the 4th straight session. No clear catalyst flagged. Watch the inventory and demand reads for the next leg.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -27,7 +27,7 @@
     },
     "crypto": {
       "section_id": "crypto",
-      "prose": "Bitcoin at 62,679, higher about 0.3% on the session, down 5.3% on the week and down 14.9% on the month, inside its recent range. No clear catalyst flagged. Risk appetite here tends to track the broader tape.",
+      "prose": "Bitcoin at 62,614, lower about 0.2% on the session, down 4.5% on the week and down 14.8% on the month, inside its recent range. No clear catalyst flagged. Risk appetite here tends to track the broader tape.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
@@ -35,12 +35,58 @@
     },
     "volatility_breadth": {
       "section_id": "volatility_breadth",
-      "prose": "VIX at 16.76, lower about 1.4% on the session, up 2.1% on the week and up 1.0% on the month, inside its recent range. No clear catalyst flagged. A low VIX leaves little hedging cushion if data surprises.",
+      "prose": "VIX at 16.85, higher about 0.1% on the session, down 9.1% on the week and down 1.5% on the month, inside its recent range. No clear catalyst flagged. A low VIX leaves little hedging cushion if data surprises.",
       "cause_source_id": null,
       "confidence": "low",
       "templated": true,
       "cited_sources": []
     }
   },
-  "raw_model_output": null
+  "raw_model_output": {
+    "us_equities": {
+      "level": "S&P 500 ~7487, Nasdaq ~26414, Dow ~51599, Russell ~2965",
+      "change": "S&P +1.0% on the week, Nasdaq +1.54%, Russell +1.65%, Dow +0.3%",
+      "context": "Small-caps and Nasdaq both leading the Dow signals broad risk-on participation rather than a narrow mega-cap rally.",
+      "cause": "U.S. stocks rebounded after the U.S. and Iran signed an interim pact to wind down the war, with gasoline prices also continuing to fall.",
+      "cause_source_id": "wsj-22",
+      "confidence": "high",
+      "prose": "U.S. equities closed the week on a strong note, with the Russell 2000 (+about 1.65%) and Nasdaq (+about 1.54%) both outpacing the Dow (+about 0.3%) — a breadth signature consistent with genuine risk-on buying rather than a narrow flight to mega-caps. The S&P 500 finished near 7487. According to WSJ (wsj-22), stocks rebounded as the U.S. and Iran signed their interim pact to wind down the war, with falling gasoline prices adding a consumer tailwind. On a one-month basis the S&P and Nasdaq remain slightly negative, suggesting this week's move is recovery rather than breakout."
+    },
+    "rates_and_dollar": {
+      "level": "10Y UST ~4.43%, 2Y UST ~4.05%, DXY ~100.89",
+      "change": "10Y -4 bps on the week, -14 bps on the month; 2Y -2 bps on the week; DXY +0.71% on the week, +1.65% on the month",
+      "context": "The 2s10s spread is positive (~38 bps), a mild steepening that removes near-term recession signal; dollar strength pressures commodities and exporters.",
+      "cause": "The dollar rose as the Fed held rates in a unanimous decision under new chairman Kevin Warsh, while Treasury yields slipped as markets continued to adjust to Warsh's debut; separately, Kalshi traders now see greater than 50% odds of a Fed hike in 2026 after the Fed suggested higher rates could be in the cards.",
+      "cause_source_id": "wsj-39",
+      "confidence": "high",
+      "prose": "The 10-year Treasury yield eased to about 4.43% on the week — down about 4 basis points — even as the dollar firmed to near 100.89 on the DXY. WSJ (wsj-39) reports the dollar initially rose after the Fed held rates in a unanimous decision at Kevin Warsh's first meeting as chairman. Yields then drifted lower as markets digested the debut, per WSJ (wsj-17). The tension between a falling 10-year and a rising dollar reflects competing forces: a hold that markets read as cautious, but forward guidance that CNBC (cnbc-7) says has pushed Kalshi traders to price greater than 50% odds of a hike later in 2026. The month-long 14-basis-point drop in the 10-year is the more significant trend, easing the equity discount rate headwind."
+    },
+    "commodities": {
+      "level": "WTI ~$76, Gold ~$4228",
+      "change": "WTI -1.29% on the week, -19.27% on the month; Gold -2.68% on the week, -5.74% on the month",
+      "context": "Oil's near-20% monthly collapse is a major disinflationary impulse; gold's retreat from elevated levels suggests some unwinding of war-premium safe-haven demand.",
+      "cause": "Oil fell after Trump signed a deal to reopen the Strait of Hormuz, with Saudi tankers crossing the strait and the IEA warning a lasting resolution could trigger a major supply overhang next year.",
+      "cause_source_id": "wsj-19",
+      "confidence": "high",
+      "prose": "WTI crude settled near $76, down about 1.3% on the week and a striking roughly 19% over the past month. WSJ (wsj-19) attributes the drop directly to Trump signing a deal to reopen the Strait of Hormuz, with front-month contracts falling sharply in afternoon European trading. CNBC (cnbc-6) confirmed physical flows resumed as three Saudi tankers carrying about 6 million barrels crossed the strait after hiding their transponders for more than two months. The IEA, cited by CNBC (cnbc-12), warned that a lasting resolution could drive a surge in supply and trigger a major oil overhang next year — a bearish forward signal the market is already pricing. Gold slipped to about $4228, off roughly 2.7% on the week and nearly 6% on the month, consistent with a partial unwind of the war-premium fear bid as the geopolitical backdrop improves."
+    },
+    "crypto": {
+      "level": "BTC ~$62614, ETH ~$1686",
+      "change": "BTC -4.45% on the week, -14.82% on the month; ETH -5.99% on the week, -16.03% on the month",
+      "context": "Both assets are in a month-long drawdown, underperforming equities and signaling that risk appetite in crypto has not followed the equity rebound.",
+      "cause": "The Federal Reserve proposed requiring certain payment stablecoin issuers to maintain customer identification programs, adding regulatory uncertainty to the crypto complex; no clear catalyst identified for the broader BTC/ETH price moves specifically.",
+      "cause_source_id": "fed-2",
+      "confidence": "low",
+      "prose": "Bitcoin slid to about $62,600 and Ether to about $1,686, with both down roughly 5-6% on the week and over 14-16% on the month — a notable divergence from the equity rally. The Federal Reserve (fed-2) proposed new KYC requirements for payment stablecoin issuers this week, adding a layer of regulatory uncertainty to the digital asset space. Beyond that regulatory headline, no clear catalyst from the supplied articles explains the magnitude of the crypto drawdown. The persistent underperformance relative to equities suggests crypto-specific selling pressure rather than a macro risk-off event."
+    },
+    "volatility_breadth": {
+      "level": "VIX ~16.85",
+      "change": "VIX -9.11% on the week, -1.47% on the month",
+      "context": "A VIX near 17 and falling indicates hedging demand is low; the market is not pricing near-term stress.",
+      "cause": "Fear eased as the Iran deal reduced oil supply concerns, with gas prices falling below $4 per gallon, though industry sources warn the accord's language may allow Tehran to introduce Hormuz transit fees after 60 days.",
+      "cause_source_id": "cnbc-11",
+      "confidence": "medium",
+      "prose": "The VIX fell about 9% on the week to near 16.85, a level consistent with low hedging demand and investor complacency rather than fear. CNBC (cnbc-11) links the easing of anxiety to the Iran deal reducing oil supply fears and pushing gas prices below $4 per gallon. However, the FT (ft-3) flags a residual risk: industry executives warn the accord's language could allow Tehran to introduce Hormuz transit fees after 60 days, a tail risk the VIX is not currently pricing. For now, the vol surface is quiet."
+    }
+  }
 }
