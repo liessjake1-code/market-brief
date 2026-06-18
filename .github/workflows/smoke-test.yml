@@ -17,7 +17,9 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Build without sending
+      - name: Build without sending (offline, deterministic)
         run: python brief.py --no-send
+        env:
+          MARKET_BRIEF_OFFLINE: "1"
       - name: Run tests
         run: python -m pytest -q

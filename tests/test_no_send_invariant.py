@@ -17,12 +17,14 @@ STATE_FILE = os.path.join(REPO_ROOT, "last_run.json")
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ, MARKET_BRIEF_OFFLINE="1")  # deterministic, no network
     return subprocess.run(
         [sys.executable, os.path.join(REPO_ROOT, "brief.py"), *args],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
 
