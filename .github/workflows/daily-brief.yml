@@ -1,0 +1,42 @@
+name: Daily Market Brief
+
+# Scheduled weekday send (spec §8.3; roadmap §5.12). Two cron lines cover US
+# daylight and standard time; the in-script local-time window guard (engine/
+# schedule.py) ensures exactly one fires inside the window year round and skips
+# if today already sent. GitHub cron is UTC and does not follow DST.
+on:
+  schedule:
+    - cron: "30 13 * * 1-5"   # 8:30 CT during CDT (13:30 UTC)
+    - cron: "30 14 * * 1-5"   # 8:30 CT during CST (14:30 UTC)
+  workflow_dispatch: {}        # manual runs for testing
+
+permissions:
+  contents: write              # state commit-back pushes last_run.json
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # PAT so the state commit counts as repo activity and the scheduled
+          # workflow is not auto-disabled after 60 days (spec §8.3).
+          token: ${{ secrets.STATE_COMMIT_PAT }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python brief.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FMP_API_KEY:       ${{ secrets.FMP_API_KEY }}
+          FINNHUB_API_KEY:   ${{ secrets.FINNHUB_API_KEY }}
+          FRED_API_KEY:      ${{ secrets.FRED_API_KEY }}
+          SMTP_HOST:         ${{ secrets.SMTP_HOST }}
+          SMTP_USER:         ${{ secrets.SMTP_USER }}
+          SMTP_PASS:         ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM:        ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO:          ${{ secrets.EMAIL_TO }}
+          STATE_COMMIT_PAT:  ${{ secrets.STATE_COMMIT_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:  ${{ secrets.TELEGRAM_CHAT_ID }}

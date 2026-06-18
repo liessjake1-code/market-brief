@@ -1,18 +1,171 @@
-{# Email-safe brief template (Section 5, 10.4). Built in Phase 7.
+{# template.html.j2 — Daily Market Brief (spec §4, §6; roadmap §7).
 
-   Constraints when implemented:
-   - Single-column TABLE layout, fully inline styles, web-safe fonts (clients
-     strip <style>, ignore flex/grid, block web fonts).
-   - Three fenced zones: settled recap, "This morning so far" (visually fenced,
-     timestamped), What to Watch Today.
-   - Tabular numerals (Consolas/SFMono monospace) for every figure.
-   - Degraded banner at top when degraded; favicons only in Movers/Watchlist.
-   - Render from validated fields only; the template enforces house style.
+   Email-safe: single-column table layout, fully inline styles, web-safe fonts
+   (Georgia masthead; Consolas/SFMono-Regular monospace for figures — tabular
+   numerals are the signature). One accent (gold rule); green/red carry direction
+   only. Rendered from a validated BriefView (render/viewmodel.py); no logic here
+   beyond presentation. Reading order: diff line, At a Glance, Top Story + settled
+   sections, the fenced "This morning so far" live zone, What to Watch Today.
 
-   PLACEHOLDER until Phase 7. #}
-<!doctype html>
+   Palette (spec §6.5): ink #13202E, paper #FBFAF7, card #FFFFFF, hairline
+   #E4E0D7, gold #B0892F, green #197A4B, red #BC3B2E, grey #6B7785. #}
+{%- set MONO = "Consolas, 'SFMono-Regular', monospace" -%}
+{%- set SERIF = "Georgia, 'Times New Roman', serif" -%}
+{%- macro figure(cell) -%}
+  {%- set color = '#197A4B' if cell.direction == 'up' else ('#BC3B2E' if cell.direction == 'down' else '#13202E') -%}
+  <span style="font-family:{{ MONO }};color:{{ color }};white-space:nowrap;">
+  {%- if cell.url -%}<a href="{{ cell.url }}" style="color:{{ color }};text-decoration:none;">{{ cell.label }} {{ cell.value }}</a>
+  {%- else -%}{{ cell.label }} {{ cell.value }}{%- endif -%}
+  </span>
+{%- endmacro -%}
 <html>
-  <body>
-    <p>Daily Market Brief template not yet built (Phase 7).</p>
+  <body style="margin:0;padding:0;background:#FBFAF7;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBFAF7;">
+      <tr>
+        <td align="center" style="padding:18px 12px;">
+          <table role="presentation" width="640" cellpadding="0" cellspacing="0"
+                 style="width:640px;max-width:640px;background:#FFFFFF;border:1px solid #E4E0D7;">
+
+            {# Masthead #}
+            <tr>
+              <td style="padding:22px 26px 8px 26px;border-top:3px solid #B0892F;">
+                <div style="font-family:{{ SERIF }};font-size:24px;color:#13202E;font-weight:bold;">Morning Market Brief</div>
+                <div style="font-family:{{ SERIF }};font-size:13px;color:#6B7785;padding-top:3px;">{{ view.date_label }} &nbsp;|&nbsp; {{ view.send_label }}</div>
+              </td>
+            </tr>
+
+            {# Degraded banner — top of the brief, not just the Actions log (spec §6.5) #}
+            {% if view.degraded %}
+            <tr>
+              <td style="padding:6px 26px;">
+                <div style="font-family:{{ SERIF }};font-size:12px;color:#BC3B2E;background:#FBE9E7;border:1px solid #BC3B2E;padding:8px 10px;">
+                  Degraded run: some fields are stale or the narrative is templated. Read with that caveat.
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+
+            {# Diff line — the highest-signal element, at the very top (spec §4.1) #}
+            <tr>
+              <td style="padding:10px 26px 14px 26px;">
+                <div style="font-family:{{ SERIF }};font-size:14px;color:#13202E;background:#FBFAF7;border-left:3px solid #B0892F;padding:8px 12px;">
+                  <strong>What changed since yesterday:</strong> {{ view.diff_line }}
+                </div>
+              </td>
+            </tr>
+
+            {# At a Glance — three columns, ten rows, the one live row labeled (spec §4.1) #}
+            <tr>
+              <td style="padding:4px 26px 16px 26px;">
+                <div style="font-family:{{ SERIF }};font-size:15px;color:#13202E;font-weight:bold;padding-bottom:6px;">At a Glance</div>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  {% for row in view.glance_rows %}
+                  <tr style="{% if row.is_live %}background:#FBF4E6;{% endif %}border-bottom:1px solid #E4E0D7;">
+                    <td style="padding:7px 8px 7px 0;vertical-align:top;width:130px;font-family:{{ SERIF }};font-size:12px;color:#13202E;font-weight:bold;">
+                      {{ row.category }}
+                      {% if row.is_live and row.timestamp %}<div style="font-family:{{ SERIF }};font-size:10px;color:#B0892F;font-weight:normal;">{{ row.timestamp }}</div>{% endif %}
+                    </td>
+                    <td style="padding:7px 8px;vertical-align:top;width:230px;font-family:{{ MONO }};font-size:12px;color:#13202E;">
+                      {% for cell in row.figures %}{{ figure(cell) }}{% if not loop.last %} &nbsp; {% endif %}{% endfor %}
+                    </td>
+                    <td style="padding:7px 0 7px 8px;vertical-align:top;font-family:{{ SERIF }};font-size:12px;color:#6B7785;">{{ row.why }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </td>
+            </tr>
+
+            {# Charts — inline CID images so they show with remote images blocked (spec §6) #}
+            {% if view.chart_cids %}
+            <tr>
+              <td style="padding:0 26px 12px 26px;" align="center">
+                {% for cid in view.chart_cids %}
+                <img src="cid:{{ cid }}" alt="chart" style="display:block;margin:6px auto;max-width:100%;border:1px solid #E4E0D7;" />
+                {% endfor %}
+              </td>
+            </tr>
+            {% endif %}
+
+            {# Body sections: Top Story floats first, then the fixed fallback order #}
+            {% for section in view.sections %}
+            <tr>
+              <td style="padding:6px 26px;">
+                <div style="font-family:{{ SERIF }};font-size:15px;color:#13202E;font-weight:bold;padding-bottom:3px;">
+                  {% if section.is_top_story %}<span style="color:#B0892F;">Top Story &middot; </span>{% endif %}{{ section.title }}
+                </div>
+                <div style="font-family:{{ SERIF }};font-size:13px;color:#13202E;line-height:1.5;">{{ section.prose }}</div>
+                {% if section.favicons %}
+                <div style="padding-top:5px;">
+                  {% for f in section.favicons %}
+                  <a href="{{ f.url }}" style="text-decoration:none;font-family:{{ MONO }};font-size:11px;color:#13202E;margin-right:10px;">
+                    {% if f.favicon %}<img src="{{ f.favicon }}" width="14" height="14" alt="" style="vertical-align:middle;border:0;" /> {% endif %}{{ f.ticker }}
+                  </a>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+
+            {# Gold rule before the fenced live zone #}
+            <tr><td style="padding:8px 26px;"><div style="border-top:2px solid #B0892F;"></div></td></tr>
+
+            {# This morning so far — fenced + tinted, every figure timestamped (spec §3.1, §6.5) #}
+            <tr>
+              <td style="padding:4px 26px 12px 26px;">
+                <div style="background:#FBF4E6;border:1px solid #E4E0D7;padding:12px 14px;">
+                  <div style="font-family:{{ SERIF }};font-size:15px;color:#13202E;font-weight:bold;">This morning so far</div>
+                  <div style="font-family:{{ SERIF }};font-size:11px;color:#B0892F;padding-bottom:6px;">{{ view.live_label }} &middot; live snapshot, not a settled fact</div>
+                  {% if view.live_figures %}
+                  <div style="font-family:{{ MONO }};font-size:12px;color:#13202E;line-height:1.7;">
+                    {% for cell in view.live_figures %}{{ figure(cell) }}{% if not loop.last %} &nbsp; {% endif %}{% endfor %}
+                  </div>
+                  {% else %}
+                  <div style="font-family:{{ SERIF }};font-size:12px;color:#6B7785;">No live pre-market figures available this morning.</div>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+
+            {# What to Watch Today — the only forward-looking zone (spec §4.2 section 11) #}
+            <tr>
+              <td style="padding:4px 26px 14px 26px;">
+                <div style="font-family:{{ SERIF }};font-size:15px;color:#13202E;font-weight:bold;padding-bottom:4px;">What to Watch Today</div>
+                {% if view.forward_events or view.earnings %}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  {% for ev in view.forward_events %}
+                  <tr>
+                    <td style="padding:2px 8px 2px 0;font-family:{{ MONO }};font-size:12px;color:#B0892F;width:90px;vertical-align:top;">{{ ev.time_label or '—' }}</td>
+                    <td style="padding:2px 0;font-family:{{ SERIF }};font-size:12px;color:#13202E;">{{ ev.title }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% if view.earnings %}
+                  <tr>
+                    <td style="padding:6px 8px 2px 0;font-family:{{ SERIF }};font-size:12px;color:#6B7785;vertical-align:top;">Earnings</td>
+                    <td style="padding:6px 0 2px 0;font-family:{{ MONO }};font-size:12px;color:#13202E;">
+                      {% for e in view.earnings %}{{ e.ticker }}{% if e.when %} ({{ e.when }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+                    </td>
+                  </tr>
+                  {% endif %}
+                </table>
+                {% else %}
+                <div style="font-family:{{ SERIF }};font-size:12px;color:#6B7785;">No scheduled events flagged for today.</div>
+                {% endif %}
+              </td>
+            </tr>
+
+            {# Footer #}
+            <tr>
+              <td style="padding:12px 26px 20px 26px;border-top:1px solid #E4E0D7;">
+                <div style="font-family:{{ SERIF }};font-size:11px;color:#6B7785;line-height:1.5;">
+                  {{ view.sources_note }}<br/>{{ view.send_label }}
+                </div>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>

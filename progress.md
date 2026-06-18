@@ -11,36 +11,21 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
-- **Current phase:** Phase 1 (Safety net) — DONE and validated (2026-06-17).
-  Built from the single-file HANDOFF and merged into this repo, keeping the
-  existing docs/, CLAUDE.md, .gitignore, and the populated data/*.yaml.
-- **Next phase to build:** Phase 2 (State caching + first-run backfill) — NOT
-  started.
+- **Current phase:** Phase 7 (Email-safe template + charts) — BUILT + tested
+  (142 tests green on py3.12). The last build phase. All seven phases are now
+  built; only the Track A human go-live punch list remains (HANDOFF_PHASE7.md).
+- **Build mode:** Human delegated autonomous build-out (2026-06-17): proceed
+  through all phases, commit at each gate, hand off when context gets long.
+  Track A (human-only) actions are being collected into a punch list for the end.
+- **Next phase to build:** none — Phase 7 was the final build phase. Next steps
+  are all Track A (secrets, watchlist, first real send, schedule watch).
 - **Repo:** https://github.com/liessjake1-code/market-brief (public, `main` branch).
-- **Local path:** /Users/jakeliess/market-brief (this repo);
-  also /Users/jakeliess/market-briefv2 (the single-file HANDOFF working copy).
+- **Local path:** /Users/jakeliess/market-brief
 - **Today's date at setup:** 2026-06-17
 
 ---
 
 ## Done
-
-### Track B (Claude Code) — Phase 1: Safety net (2026-06-17)
-- [x] Pinned the two load-bearing deps in `requirements.txt`:
-      `yfinance==1.4.1`, `anthropic==0.109.2` (resolved from PyPI at build time).
-- [x] `config.yaml` created with the spec toggles; secrets stay in env only.
-- [x] `brief.py` entry point with `--no-send` => NO state write wired in from
-      the start (`write_state = not args.no_send`, decided once). The no-send
-      preview output uses a gitignored name.
-- [x] `.github/workflows/smoke-test.yml` (build-without-send on
-      `workflow_dispatch`; read-only data keys only, no SMTP secrets on it).
-- [x] Phase-tagged stub modules for every later-phase file (sources/, engine/,
-      render/) — each raises NotImplementedError so nothing fakes data.
-- [x] Validated: config loads, `--no-send`=>write_state False / default=>True,
-      `brief.py --no-send` reaches the pipeline and stops with the explicit
-      "not built yet" error (no crash, no fake data).
-- [x] Kept the existing populated `data/*.yaml` and the thorough `.gitignore`;
-      did NOT overwrite them with the single-file HANDOFF's empty placeholders.
 
 ### Environment / setup
 - [x] Read all 5 docs in full (START_HERE, CLAUDE.md, spec, roadmap, execution guide).
@@ -114,9 +99,153 @@ of secrets and whether they are set.
 
 ---
 
+## Phase 1 — Safety net (status: BUILT, awaiting Actions verification)
+
+### Files written (Track B)
+- Deleted Phase 0 throwaways `test_send.py` + `.github/workflows/test-send.yml`
+  and removed their (now obsolete) `.gitignore` entries.
+- Repo layout per spec 8.1: `sources/` (prices, fred, calendar, news),
+  `engine/` (state, diff, top_story, narrative), `render/` (charts,
+  template.html.j2), `runs/.gitkeep`, package `__init__.py` files. All `.py`
+  modules are docstring-only STUBS that name their implementing phase.
+- `requirements.txt`: RESOLVED, mutually-compatible pins locked against Python
+  3.12 via uv on 2026-06-17. Load-bearing: `yfinance==1.4.1`,
+  `anthropic==0.109.2`. Also pandas 3.0.3, requests 2.34.2, matplotlib 3.11.0,
+  feedparser 6.0.12, jinja2 3.1.6, python-dateutil 2.9.0.post0,
+  pandas-market-calendars 5.4.0, pyyaml 6.0.3, pytest 9.1.0.
+- `config.yaml`: spec 8.4 skeleton verbatim (number_tolerance_pct nested under
+  narrative; second_price_provider "stooq" provisional; watchlist []).
+- `brief.py`: argparse + `--no-send`. The no-state-on-no-send invariant is
+  structural: all state writes funnel through `_commit_state()`, a hard no-op
+  under `--no-send`. State logic itself is Phase 2.
+- `tests/test_no_send_invariant.py`: regression test proving `--no-send` writes
+  no `last_run.json` and never mutates an existing one. Passes locally.
+- `.github/workflows/smoke-test.yml`: workflow_dispatch only; checkout@v4,
+  setup-python@v5 (Python 3.12), pip install, `python brief.py --no-send`, pytest.
+
+### Verified locally (Track B)
+- `python brief.py --no-send` exits 0, writes no state file.
+- Both invariant tests pass; all packages import; `config.yaml` validates against
+  spec 8.4 with a real pyyaml parse on Python 3.12 (via uv).
+
+### Phase 1 gate (MET — runner-side closed 2026-06-18)
+> `smoke-test.yml` builds without sending on Actions; `--no-send` writes no state.
+- Local half proven. HUMAN triggered `smoke-test.yml` on `build/phases` on
+  2026-06-18: GREEN. Offline `--no-send` build ran clean and the full pytest suite
+  passed on the 3.12 runner. This closes the runner-side verification gate for ALL
+  seven build phases at once (Phases 1-7), since the smoke test builds + tests the
+  whole codebase. NOTE: local interpreter is Python 3.14.6 (no 3.12 locally); pins
+  were resolved against 3.12, which is what the runner uses, so the runner was the
+  real gate, and it is now green.
+
+---
+
+## Phase 7 — Email-safe template + charts (status: BUILT + tested, 142 green)
+
+The final build phase. Phases 2-6 are recorded in HANDOFF_PHASE7.md and the commit
+history; this entry covers the last phase.
+
+### Files written (Track B)
+- `render/template.html.j2` — the real editorial template (was a placeholder).
+  Single-column table layout, fully inline styles, web-safe fonts (Georgia
+  masthead; `Consolas,'SFMono-Regular',monospace` figures). Spec §6.5 palette
+  exactly (navy #13202E, paper #FBFAF7, gold #B0892F, green/red direction only).
+  Diff line at top, At a Glance 10-row table (the one live "This morning" row
+  labeled by pull time), floating Top Story then fixed fallback order, all eleven
+  sections (honest one-liner when quiet), fenced + tinted "This morning so far"
+  zone, What to Watch Today, degraded banner, source hyperlinks, favicons confined
+  to Movers/Watchlist.
+- `render/viewmodel.py` — assembles a validated BriefView from engine outputs so
+  the template stays logic-light and unit-testable. Builds glance rows, orders the
+  eleven sections per the Top Story decision, honest fallbacks for empty sections.
+- `render/html.py` — Jinja env + render seam (autoescape on).
+- `render/source_links.py` — every figure links to its source (yields→FRED series,
+  everything else→Yahoo quote); Google s2 favicons, graceful fail.
+- `render/charts.py` — matplotlib (Agg) → PNG → inline CID. Three default-on
+  charts (index %-change bar, yield curve + 10Y trend, WTI 1-month); others behind
+  the config `charts` flags. Each returns None on thin data and is skipped.
+- `sources/calendar.py` — FMP primary, Finnhub backup, minor events + earnings
+  for What to Watch / Earnings on Deck ONLY (never the tier-one trigger). Degrades
+  quietly: no key → empty + not-degraded; configured-but-failed → degraded.
+- `render/send.py` — extended `build_message`/`send` for multipart/related inline
+  CID images (HTML-only path unchanged).
+- `brief.py` — replaced `_render_templated_html` with viewmodel→Jinja render.
+  Charts + render wrapped in crash barriers: a matplotlib failure ships a
+  chart-free degraded brief; a render failure falls back to flat HTML (spec §5.6,
+  the brief never blocks). Pre-market labeling wired via `schedule.premarket_label`
+  by actual pull time. Offline seam + no-state-on-no-send invariant preserved; a
+  no-send build writes a gitignored `brief.preview.html` for inspection.
+
+### Tests (Track B)
+- `tests/test_template_render.py`, `test_viewmodel.py`, `test_charts.py`,
+  `test_calendar.py`, `test_source_links.py`, `test_send_inline.py`,
+  `test_render_degrade.py`. 36 new tests; full suite 142 green on py3.12.
+
+### Verified locally (Track B)
+- `MARKET_BRIEF_OFFLINE=1 python brief.py --no-send` renders all three zones,
+  writes no state, writes the preview file. Time-aware label flips Pre-market →
+  Early session correctly. Charts produce valid PNG bytes; favicons confined to
+  Movers/Watchlist (0 in At a Glance); yields link to FRED, oil to Yahoo. Both
+  crash barriers verified to degrade, not crash.
+
+### Phase 7 gate (Track B half met; real-send half is Track A)
+> Brief renders across settled/live/forward zones; figures link to sources; live
+> zone fenced + timestamped by actual pull time; charts embed as inline images.
+- All met in the offline render. The real-send confirmation (numbers audit against
+  source pages, inbox delivery) is the Track A first-send step.
+
+### Note: daily-brief.yml already final
+- Both DST crons, PAT checkout, workflow_dispatch, and all env secrets (incl.
+  FMP_API_KEY / FINNHUB_API_KEY for the calendar) were already in place from
+  Phase 5. No workflow change needed for Phase 7.
+
+---
+
+## Go-live punch list (Track A, post-build)
+
+### 1. Runner-side gate — DONE (2026-06-18)
+- `smoke-test.yml` GREEN on `build/phases`. Offline build + full pytest on the
+  3.12 runner. Closes the runner-side verification for all 7 build phases.
+
+### 2. Go-live secrets — DONE (2026-06-18)
+- All secrets the workflow reads are now set (names only, values never recorded):
+  STATE_COMMIT_PAT, ANTHROPIC_API_KEY, FRED_API_KEY, FMP_API_KEY, FINNHUB_API_KEY
+  (set, though optional), plus the Phase 0 SMTP_HOST/USER/PASS + EMAIL_FROM/TO.
+- TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID intentionally absent: heartbeat_channel
+  is "github", so the workflow's empty Telegram env vars are harmless.
+- STATE_COMMIT_PAT: fine-grained PAT, this repo only, Contents read+write,
+  90-day expiry. ROTATE before expiry (set a quarterly reminder) — when it lapses
+  the daily state commit-back silently fails.
+- Verified the set against `.github/workflows/daily-brief.yml`: complete, no gaps.
+
+### 3. Real watchlist in config.yaml — DONE (2026-06-18)
+- watchlist = [SPCX, QUBT, TSLA, NVDA]. All four verified live on yfinance from
+  the 3.12 env (5-day pulls OK). Note: SPCX is SpaceX common stock — it IPO'd on
+  Nasdaq 2026-06-12, so it is a real tradable symbol, not a fund/proxy.
+- ticker_domains favicons added: SPCX->spacex.com, QUBT->quantumcomputinginc.com,
+  TSLA->tesla.com (NVDA->nvidia.com already present). Favicon is graceful-fail, so
+  a wrong domain only drops the glyph; the row still reads from text.
+
+### 4. First real production send — TODO
+- Trigger `daily-brief.yml` (workflow_dispatch, branch `build/phases`). Audit
+  every number vs its source page. Redo Outlook safe-senders if junked.
+
+### 5. Watch 2-3 scheduled mornings — TODO
+- Prove cron timing (Phase 0 unknown c). Record runner-IP finding. Decide second
+  price source (Decision 18; currently `second_price_provider: stooq`).
+
+### 6. Confirm heartbeat on a simulated miss — TODO
+- Dead-man's switch fires within a day on the independent (github) channel.
+
+---
+
 ## Next actions
 
 ### Human (Track A)
+- Verify Phase 1: trigger `smoke-test.yml` (Actions tab, "Run workflow"). Confirm
+  green. No secrets needed for the smoke test. Then give the Phase 2 go-ahead.
+
+### Human (Track A) — carried from Phase 0
 1. Let the cron fire over the next ~2-3 weekday mornings; confirm mail arrives near
    8:30 CT in the inbox with live-looking numbers.
 2. Record the runner-IP finding (block or no block) — decides whether the second

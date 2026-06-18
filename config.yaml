@@ -1,28 +1,36 @@
-# Daily Market Brief configuration (Section 10.3).
-# Recipient/sender are the EMAIL_TO / EMAIL_FROM Secrets, NOT config.
-# Secrets are never stored here; only toggles and non-secret config live here.
+# =============================================================================
+# config.yaml  —  Daily Market Brief
+# =============================================================================
+# Toggles, watchlist, recipients map, movers universe, ticker-to-domain map.
+# Structure is fixed by spec §8.4. Recipient and sender are NOT here: they are
+# the EMAIL_TO / EMAIL_FROM GitHub Secrets, so there is a single source of truth
+# for the destination (spec §8.4, §13). This file is tracked in the repo; the
+# watchlist is low-stakes plaintext (spec §13).
+# =============================================================================
 
 send_time: "08:30"
-send_window_end: "09:15"
+send_window_end: "09:15"   # local-time guard window upper bound
 timezone: "America/Chicago"
 
 resilience:
-  degraded_stale_threshold: 2
-  hard_floor_missing_threshold: 4
-  second_price_source: true
+  degraded_stale_threshold: 2      # this many stale core fields trips the degraded banner
+  hard_floor_missing_threshold: 4  # more missing than this sends "data unavailable" and exits non-zero
+  second_price_source: true        # best-effort yfinance backup for indices/futures/VIX (spec §7.5, Decision 18)
   second_price_provider: "stooq"   # "stooq" (no key, low quota) or "twelvedata" (key, no free indices)
+                                   # PROVISIONAL: revisit after Phase 0 runner-IP finding (spec Decision 18).
 
 monitoring:
-  heartbeat_enabled: true
-  heartbeat_cutoff: "10:00"
-  heartbeat_channel: "github"      # "github" or "telegram"
+  heartbeat_enabled: true          # dead-man's switch (spec §7.6, Decision 15)
+  heartbeat_cutoff: "10:00"        # local-time cutoff; if last_sent_date is not today by now on a trading day, alert
+  heartbeat_channel: "github"      # "github" (workflow-failure notify, built in) or "telegram"
+  # TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID live in GitHub Secrets if heartbeat_channel is "telegram"
 
 narrative:
-  enabled: true
+  enabled: true            # explanation engine (spec §5.6)
   model: "claude-sonnet-4-6"
   articles_per_section: 3
-  use_article_bodies: false
-  number_tolerance_pct: 0.05
+  use_article_bodies: false   # later, flagged enhancement; launch grounds on headlines + summaries
+  number_tolerance_pct: 0.05  # tolerant number check band for percentages (nested under narrative, spec §8.4)
 
 charts:
   index_bar: true
@@ -35,19 +43,27 @@ charts:
   watchlist_sparklines: true
 
 sections:
-  breadth: false
+  breadth: false           # deferred, see spec §10
 
-movers_universe:
+movers_universe:           # curated liquid names, best-effort upgrade over watchlist-only
   - AAPL
   - NVDA
   - MSFT
   - AMD
   - TSLA
 
-movers_min_volume: 50000
+movers_min_volume: 50000   # volume floor; below this a move is not headlined
 
-watchlist: []              # the human populates this; ships as placeholder until then
+watchlist:                 # personally-tracked names (spec §13); all four verified live on yfinance 2026-06-18
+  - SPCX
+  - QUBT
+  - TSLA
+  - NVDA
 
-ticker_domains:
+ticker_domains:            # for the Movers/Watchlist favicon glyph
   NVDA: nvidia.com
   AMD: amd.com
+  KMX: carmax.com
+  SPCX: spacex.com
+  QUBT: quantumcomputinginc.com
+  TSLA: tesla.com

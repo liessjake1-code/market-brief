@@ -46,10 +46,6 @@ out/
 *.preview.html
 brief_preview.html
 
-# --- Throwaway Phase 0 artifacts (deleted after Phase 0, ignored meanwhile) ---
-test_send.py
-.github/workflows/test-send.yml
-
 # --- Tooling / caches ---
 .pytest_cache/
 .mypy_cache/
