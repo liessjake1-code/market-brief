@@ -226,9 +226,27 @@ history; this entry covers the last phase.
   TSLA->tesla.com (NVDA->nvidia.com already present). Favicon is graceful-fail, so
   a wrong domain only drops the glyph; the row still reads from text.
 
-### 4. First real production send — TODO
-- Trigger `daily-brief.yml` (workflow_dispatch, branch `build/phases`). Audit
-  every number vs its source page. Redo Outlook safe-senders if junked.
+### 4. First real production send — SENT (2026-06-18), audit pending
+- Blocker found + fixed first: daily-brief.yml lived only on build/phases, but
+  GitHub registers schedule/dispatch triggers from the DEFAULT branch (main).
+  Merged build/phases -> main (human waived the no-push-to-main rule this once;
+  15 add/add conflicts all resolved to the build/phases version, tree verified
+  byte-identical, 142 tests green). "Daily Market Brief" then appeared in Actions.
+- First manual send: GREEN. Log: FULL RUN, health missing_core=[] stale_core=[]
+  degraded=False (clean data pull, no Yahoo block from the runner), send: sent
+  (1 inline chart), schedule: after window (10:45 CT) sending late (correct
+  relabel for a mid-day manual dispatch). Crons are now LIVE on main.
+- NARRATIVE degraded=True: model ran but output fell back to templated lines.
+  Could not audit why because the runs/ JSON dump was written only to the
+  runner's ephemeral disk, never committed. FIXED: commit_state_back now stages
+  runs/ dumps alongside last_run.json and commits when either changed (commit
+  79c4f07 / merged to main cd1d12a; +2 tests, 144 green). Next send leaves an
+  auditable runs/ dump in the repo.
+- STILL TODO: confirm the email actually landed in the Tulane inbox (vs Junk);
+  audit every number against its source page; re-run to capture a runs/ dump and
+  diagnose the degrade (thin mid-day news vs validator/cause-check reject).
+- NOTE (not a bug): first run printed "state-commit: no change to last_run.json"
+  because there was no committed state baseline yet; normal commits begin next run.
 
 ### 5. Watch 2-3 scheduled mornings — TODO
 - Prove cron timing (Phase 0 unknown c). Record runner-IP finding. Decide second
