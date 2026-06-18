@@ -11,14 +11,14 @@ of secrets and whether they are set.
 
 ## Status at a glance
 
-- **Current phase:** Phase 6 (Explanation engine) — BUILT + tested (106
-  tests green on py3.12). Validator built first; anthropic 0.109.2 call shape verified. Phase 1 also BUILT; both await one human Actions
-  trigger of `smoke-test.yml` to close their gates on the runner.
+- **Current phase:** Phase 7 (Email-safe template + charts) — BUILT + tested
+  (142 tests green on py3.12). The last build phase. All seven phases are now
+  built; only the Track A human go-live punch list remains (HANDOFF_PHASE7.md).
 - **Build mode:** Human delegated autonomous build-out (2026-06-17): proceed
   through all phases, commit at each gate, hand off when context gets long.
   Track A (human-only) actions are being collected into a punch list for the end.
-- **Next phase to build:** Phase 7 (Email-safe template + charts) — the last
-  build phase.
+- **Next phase to build:** none — Phase 7 was the final build phase. Next steps
+  are all Track A (secrets, watchlist, first real send, schedule watch).
 - **Repo:** https://github.com/liessjake1-code/market-brief (public, `main` branch).
 - **Local path:** /Users/jakeliess/market-brief
 - **Today's date at setup:** 2026-06-17
@@ -134,6 +134,67 @@ of secrets and whether they are set.
   tab and confirms it runs green on the 3.12 runner. NOTE: local interpreter is
   Python 3.14.6 (no 3.12 locally); pins were resolved against 3.12, which is what
   the runner uses, so the runner is the real gate.
+
+---
+
+## Phase 7 — Email-safe template + charts (status: BUILT + tested, 142 green)
+
+The final build phase. Phases 2-6 are recorded in HANDOFF_PHASE7.md and the commit
+history; this entry covers the last phase.
+
+### Files written (Track B)
+- `render/template.html.j2` — the real editorial template (was a placeholder).
+  Single-column table layout, fully inline styles, web-safe fonts (Georgia
+  masthead; `Consolas,'SFMono-Regular',monospace` figures). Spec §6.5 palette
+  exactly (navy #13202E, paper #FBFAF7, gold #B0892F, green/red direction only).
+  Diff line at top, At a Glance 10-row table (the one live "This morning" row
+  labeled by pull time), floating Top Story then fixed fallback order, all eleven
+  sections (honest one-liner when quiet), fenced + tinted "This morning so far"
+  zone, What to Watch Today, degraded banner, source hyperlinks, favicons confined
+  to Movers/Watchlist.
+- `render/viewmodel.py` — assembles a validated BriefView from engine outputs so
+  the template stays logic-light and unit-testable. Builds glance rows, orders the
+  eleven sections per the Top Story decision, honest fallbacks for empty sections.
+- `render/html.py` — Jinja env + render seam (autoescape on).
+- `render/source_links.py` — every figure links to its source (yields→FRED series,
+  everything else→Yahoo quote); Google s2 favicons, graceful fail.
+- `render/charts.py` — matplotlib (Agg) → PNG → inline CID. Three default-on
+  charts (index %-change bar, yield curve + 10Y trend, WTI 1-month); others behind
+  the config `charts` flags. Each returns None on thin data and is skipped.
+- `sources/calendar.py` — FMP primary, Finnhub backup, minor events + earnings
+  for What to Watch / Earnings on Deck ONLY (never the tier-one trigger). Degrades
+  quietly: no key → empty + not-degraded; configured-but-failed → degraded.
+- `render/send.py` — extended `build_message`/`send` for multipart/related inline
+  CID images (HTML-only path unchanged).
+- `brief.py` — replaced `_render_templated_html` with viewmodel→Jinja render.
+  Charts + render wrapped in crash barriers: a matplotlib failure ships a
+  chart-free degraded brief; a render failure falls back to flat HTML (spec §5.6,
+  the brief never blocks). Pre-market labeling wired via `schedule.premarket_label`
+  by actual pull time. Offline seam + no-state-on-no-send invariant preserved; a
+  no-send build writes a gitignored `brief.preview.html` for inspection.
+
+### Tests (Track B)
+- `tests/test_template_render.py`, `test_viewmodel.py`, `test_charts.py`,
+  `test_calendar.py`, `test_source_links.py`, `test_send_inline.py`,
+  `test_render_degrade.py`. 36 new tests; full suite 142 green on py3.12.
+
+### Verified locally (Track B)
+- `MARKET_BRIEF_OFFLINE=1 python brief.py --no-send` renders all three zones,
+  writes no state, writes the preview file. Time-aware label flips Pre-market →
+  Early session correctly. Charts produce valid PNG bytes; favicons confined to
+  Movers/Watchlist (0 in At a Glance); yields link to FRED, oil to Yahoo. Both
+  crash barriers verified to degrade, not crash.
+
+### Phase 7 gate (Track B half met; real-send half is Track A)
+> Brief renders across settled/live/forward zones; figures link to sources; live
+> zone fenced + timestamped by actual pull time; charts embed as inline images.
+- All met in the offline render. The real-send confirmation (numbers audit against
+  source pages, inbox delivery) is the Track A first-send step.
+
+### Note: daily-brief.yml already final
+- Both DST crons, PAT checkout, workflow_dispatch, and all env secrets (incl.
+  FMP_API_KEY / FINNHUB_API_KEY for the calendar) were already in place from
+  Phase 5. No workflow change needed for Phase 7.
 
 ---
 
