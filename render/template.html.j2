@@ -39,9 +39,11 @@
   </div>
   {%- endif -%}
 {%- endmacro -%}
-{# Chart caption: what the chart is drawn from, with a link. #}
+{# Chart caption: data source + an invitation to open the live interactive chart.
+   Email cannot run an interactive chart inline (Outlook strips JS/iframes), so the
+   static image links out to the live, zoomable Yahoo/FRED page. #}
 {%- macro chart_caption(text, url) -%}
-  {%- if text -%}<div style="font-family:{{ SANS }};font-size:10px;color:#9b978d;padding-top:4px;">Chart: {% if url %}<a href="{{ url }}" style="color:#3a6ea5;text-decoration:none;">{{ text }} &rarr;</a>{% else %}{{ text }}{% endif %}</div>{%- endif -%}
+  {%- if text -%}<div style="font-family:{{ SANS }};font-size:10px;color:#9b978d;padding-top:4px;">{{ text }}{% if url %} &middot; <a href="{{ url }}" style="color:#3a6ea5;text-decoration:none;">View live interactive chart &rarr;</a>{% endif %}</div>{%- endif -%}
 {%- endmacro -%}
 {# Inline HTML %-change bar row (table-cell based; renders everywhere incl. Outlook). #}
 {%- macro hbar(label, pct, maxabs) -%}
@@ -101,7 +103,13 @@
   <table role="presentation" cellpadding="0" cellspacing="0">{% for b in section.hbars %}{{ hbar(b.label, b.pct, section.hbar_maxabs) }}{% endfor %}</table>
   {% endif %}
   {% if section.chart_cid %}
-  <div style="margin-top:10px;"><img src="cid:{{ section.chart_cid }}" alt="{{ section.chart_caption or section.title }}" style="display:block;max-width:100%;border:1px solid #E7E5E0;" /></div>
+  <div style="margin-top:10px;">
+    {%- if section.chart_caption_url -%}
+    <a href="{{ section.chart_caption_url }}" style="text-decoration:none;"><img src="cid:{{ section.chart_cid }}" alt="{{ section.chart_caption or section.title }}" style="display:block;max-width:100%;border:1px solid #E7E5E0;" /></a>
+    {%- else -%}
+    <img src="cid:{{ section.chart_cid }}" alt="{{ section.chart_caption or section.title }}" style="display:block;max-width:100%;border:1px solid #E7E5E0;" />
+    {%- endif -%}
+  </div>
   {{ chart_caption(section.chart_caption, section.chart_caption_url) }}
   {% endif %}
   {% if section.favicons %}<div style="font-family:{{ MONO }};font-size:11px;color:#1b1a17;padding-top:9px;">{{ tickers_text(section.favicons) }}</div>{% endif %}

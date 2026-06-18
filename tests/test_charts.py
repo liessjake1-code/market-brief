@@ -71,6 +71,25 @@ def test_wti_clamps_to_a_month_window():
     assert "WTI" in chart.summary
 
 
+def test_charts_label_axes_and_dates():
+    dates = [f"2026-05-{d:02d}" for d in range(1, 22)]  # 21 dated sessions
+    series = [70.0 + i * 0.5 for i in range(21)]
+    oil = charts.wti_trend(series, dates=dates)
+    # The summary frames the window and the move from the first point.
+    assert "past month" in oil.summary
+    assert "from $70" in oil.summary
+    rates = charts.yield_curve_and_trend(
+        ust2y=4.05, ust10y=4.43, ten_year_history=series, ten_year_dates=dates)
+    assert rates is not None and len(rates.png) > 100
+
+
+def test_charts_render_without_dates_gracefully():
+    # No dates -> undated axis, still a valid chart (graceful degrade).
+    oil = charts.wti_trend([70.0, 71.0, 72.0], dates=None)
+    assert oil is not None
+    assert _is_png(oil.png)
+
+
 def test_pad_ylim_widens_a_tiny_range(monkeypatch):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()

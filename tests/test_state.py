@@ -69,6 +69,37 @@ def test_save_then_load_round_trips(repo):
     assert loaded.metrics["sp500"]["close"] == 121.0  # 100+21
 
 
+# --- history_dates: dated x-axis schema (redesign) ------------------------ #
+def test_backfill_seeds_history_dates_aligned():
+    st = S.backfill(_fake_fetcher, days=22)
+    for k in METRIC_KEYS:
+        dates = st.metrics[k]["history_dates"]
+        # Seeded dates align 1:1 with closes (calendar available in the test env).
+        assert len(dates) == len(st.metrics[k]["history"])
+        assert all(isinstance(d, str) for d in dates)
+
+
+def test_history_dates_trimmed_in_lockstep(repo):
+    st = S.backfill(_fake_fetcher, days=200)
+    S.save_state(st, repo_root=repo)
+    loaded = S.load_state(repo)
+    for k in METRIC_KEYS:
+        assert len(loaded.history_dates(k)) == len(loaded.history(k)) == S.HISTORY_KEEP
+
+
+def test_old_state_without_dates_still_loads(repo):
+    # Backward compatibility: a pre-schema file (no history_dates) loads cleanly
+    # and history_dates() returns [] rather than raising.
+    st = S.backfill(_fake_fetcher, days=5)
+    for k in METRIC_KEYS:
+        st.metrics[k].pop("history_dates", None)
+    st.data["last_sent_date"] = "2026-06-16"
+    S.save_state(st, repo_root=repo)
+    loaded = S.load_state(repo, today=date(2026, 6, 17))
+    assert loaded.history_dates("sp500") == []
+    assert len(loaded.history("sp500")) > 0   # closes load fine without dates
+
+
 def test_save_is_human_readable_indented(repo):
     st = S.backfill(_fake_fetcher, days=5)
     path = S.save_state(st, repo_root=repo)

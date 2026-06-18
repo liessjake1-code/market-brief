@@ -268,10 +268,12 @@ def _build_html(cfg, today: date, report, prose_by_section: dict[str, str], narr
         return _fallback_html(today, report, prose_by_section), []
 
 
-# Caption text + source link per PNG-charted section (spec §7 chart attribution).
+# Caption text + live-chart link per PNG-charted section (spec §7 chart attribution).
+# The URL is the live, interactive, zoomable chart page (FRED / Yahoo); the email
+# image links out to it since email cannot host an interactive chart.
 _CHART_META: dict[str, tuple[str, str]] = {
-    "rates_and_dollar": ("FRED series DGS10, DGS2", "https://fred.stlouisfed.org/series/DGS10"),
-    "commodities": ("yfinance CL=F", "https://finance.yahoo.com/quote/CL=F"),
+    "rates_and_dollar": ("Source: FRED (DGS2, DGS10)", "https://fred.stlouisfed.org/series/DGS10"),
+    "commodities": ("Source: Yahoo Finance (CL=F)", "https://finance.yahoo.com/chart/CL=F"),
 }
 
 
@@ -446,19 +448,33 @@ def _build_charts(cfg, report) -> dict[str, charts_mod.Chart]:
     history = _state_history()
     built: dict[str, charts_mod.Chart] = {}
 
+    dates = _state_history_dates()
     if flags.get("yield_curve"):
         chart = charts_mod.yield_curve_and_trend(
             ust2y=_usable_value(report, "ust2y"),
             ust10y=_usable_value(report, "ust10y"),
             ten_year_history=history.get("ust10y", []),
+            ten_year_dates=dates.get("ust10y", []),
         )
         if chart:
             built["rates_and_dollar"] = chart
     if flags.get("oil_trend"):
-        chart = charts_mod.wti_trend(history.get("wti", []))
+        chart = charts_mod.wti_trend(history.get("wti", []), dates=dates.get("wti", []))
         if chart:
             built["commodities"] = chart
     return built
+
+
+def _state_history_dates() -> dict[str, list[str]]:
+    """Per-metric ISO dates parallel to history, for dated chart axes. {} if none."""
+    try:
+        st = state_mod.load_state()
+    except (FileNotFoundError, ValueError):
+        return {}
+    if st.missing:
+        return {}
+    from engine.metrics import METRIC_KEYS
+    return {k: st.history_dates(k) for k in METRIC_KEYS}
 
 
 def _long_date(today: date) -> str:
@@ -595,12 +611,21 @@ def _commit_state(*, send: bool, today: date | None = None, fields=None) -> None
     if st.missing and os.environ.get(_OFFLINE_ENV) != "1":
         st = state_mod.backfill(prices.fetch_history)
     if fields:
+        today_iso = (today or date.today()).isoformat()
         for key, field in fields.items():
             if field.is_usable and key in st.data["metrics"]:
                 metric = st.data["metrics"][key]
                 hist = list(metric.get("history", []))
                 hist.append(field.value)
                 metric["history"] = hist
+                # Stamp today's date in lockstep so every close carries its true
+                # date going forward (the chart x-axis is dated from real data, not
+                # inferred). Backfill the gap with the seed if dates lag history.
+                dates = list(metric.get("history_dates", []))
+                while len(dates) < len(hist) - 1:
+                    dates.append("")   # unknown older dates (pre-schema closes)
+                dates.append(today_iso)
+                metric["history_dates"] = dates
                 metric["prev_close"] = metric.get("close")
                 metric["close"] = field.value
     st.data["last_sent_date"] = (today or date.today()).isoformat()
