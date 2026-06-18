@@ -214,3 +214,32 @@ def test_run_dump_writes_auditable_json(tmp_path):
     data = json.loads(open(path).read())
     assert data["date"] == "2026-06-17"
     assert "crypto" in data["sections"]
+
+
+# --- cited_sources resolution (redesign item 1: clickable per-section citation) #
+def test_accepted_section_resolves_cited_source_to_title_and_url():
+    def fake(system, user, model):
+        return json.dumps({
+            "rates_and_dollar": {
+                "prose": "The 10-year near 4.46%, up on soft auction demand.",
+                "cause_source_id": "cnbc-0", "confidence": "medium"},
+            "crypto": {"prose": "Bitcoin near 64,000.", "cause_source_id": None,
+                       "confidence": "low"},
+        })
+    results, _, _ = N.generate(
+        _bundles(), model="m", tolerance_pct=0.05, caller=fake, templated_fallback=_fallback)
+    cited = results["rates_and_dollar"].cited_sources
+    assert cited == ({"title": "Yields rise after soft auction", "url": "http://x/cnbc-0"},)
+    # A section with no cause claim resolves to no citation (no empty source label).
+    assert results["crypto"].cited_sources == ()
+
+
+def test_wsj_and_ft_feed_prefixes():
+    # Redesign item 3: WSJ feeds (Dow Jones host) and FT map to stable prefixes so
+    # their source_ids are findable in runs/ and citations.
+    assert news._prefix_for("https://feeds.content.dowjones.io/public/rss/RSSMarketsMain") == "wsj"
+    assert news._prefix_for("https://www.ft.com/markets?format=rss") == "ft"
+
+
+def test_wsj_feed_in_launch_set():
+    assert any("dowjones" in u for u in news.FEEDS)

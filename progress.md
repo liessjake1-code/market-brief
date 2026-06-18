@@ -15,16 +15,41 @@ of secrets and whether they are set.
   (default branch, so the daily-brief.yml crons register and fire). Real sends
   land in the Tulane inbox. Now iterating on look + content quality before
   locking down. 149 tests green on py3.12.
-- **EMAIL REDESIGN IN PROGRESS (2026-06-18):** Human disliked the look; approved a
-  full redesign via visual previews -> see **HANDOFF_DESIGN.md** for all locked
-  decisions. New look is "The Tape" on WHITE (serif masthead/headings, IBM Plex
-  Mono numbers, inline hybrid charts, clickable per-section source citations).
-  Item 1 of 9 DONE + shipped: `narrative.SectionResult.cited_sources` resolves the
-  matched article {title,url} from the validated cause_source_id (commit 14def7b ->
-  main 764fd8d). Items 2-9 (rich computed fallback, WSJ/FT free feeds, viewmodel
-  threading, template port, hybrid charts, Outlook CID fix, tests) are pre-decided
-  in HANDOFF_DESIGN.md for a fresh chat. Preview loop (headless-Chrome screenshot of
-  the rendered template) is the iteration tool — no email send needed per change.
+- **EMAIL REDESIGN — ALL 9 ITEMS DONE (2026-06-18):** Human disliked the look;
+  approved a full redesign via visual previews -> see **HANDOFF_DESIGN.md** for the
+  locked decisions. New look is "The Tape" on WHITE (serif masthead/headings, IBM
+  Plex Mono numbers, inline hybrid charts, clickable per-section source citations).
+  Items 1-9 are now SHIPPED on build/phases (172 tests green on py3.12, +12 over the
+  prior 160). What changed this session (items 2-9):
+    2. Rich cause-free computed fallback `templated.computed_section_line` — the
+       §5.6 four-ingredient read MINUS the "why" (level-in-context, move, range/
+       streak, forward hook). Quiet sections are substantive, never a fake cause.
+    3. WSJ free RSS feeds added (Dow Jones host: RSSMarketsMain, RSSWorldNews —
+       both verified resolving from the build host) + FT markets feed best-effort
+       (graceful-fail; FT blocks automated fetch). `_prefix_for` wsj/ft entries.
+       Free RSS + headline links ONLY (no paywall scraping) per the WSJ/FT decision.
+    4-5. Viewmodel threads per-section citations, inline HTML charts (Top Story
+       index bars, watchlist sparklines), the 4 glance text rows + short direction
+       tags, skips what_to_watch in the body, favicon-as-text. `render/
+       template.html.j2` REPLACED with the white "The Tape" port, wired to real view
+       fields. Verified via the preview-loop screenshot (matches the approved look).
+    6. `render/charts.py` restyled WHITE (blue #3a6ea5 trend, mono ticks, no
+       chart-junk); each Chart carries a one-line `summary` used as the img alt so a
+       blocked image still reads. Index bar is now inline HTML, not a PNG.
+    7. `render/send.py` rebuilt to the Outlook-reliable MIME tree
+       multipart/related[ multipart/alternative[text,html], image, image ] — images
+       are SIBLINGS of the alternative, inline + angle-bracketed Content-ID. Tree
+       shape asserted in test_send_inline. NOTE: only a real Outlook send proves it
+       renders — that is the human's test send.
+    8. `brief.py` _build_view/_build_charts/_build_html/_brief_lines wired to the new
+       view fields (sources, text_rows, directions, hbars, sparklines, per-section
+       PNG charts keyed by section).
+  Preview loop (headless-Chrome screenshot of the rendered template) was used to
+  verify the look before shipping; no email send was needed per change.
+- **STILL HUMAN (Track A) for the redesign:** one real Outlook test send to confirm
+  (a) the new look renders in Outlook, (b) the CID charts show (the broken-box fix),
+  (c) favicons degrade to clean text not broken glyphs. allow_repeat_send is still
+  true so a manual dispatch will actually send.
 - **TEMPORARY flags to RESTORE before go-live (do not forget):**
   1. `config.yaml monitoring.allow_repeat_send: true` -> set back to **false**.
      It bypasses the once-per-day idempotency guard so we can do multiple test

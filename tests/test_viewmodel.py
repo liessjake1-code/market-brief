@@ -11,25 +11,31 @@ def _fields() -> dict[str, Field]:
     return {k: Field(k, 100.0, Source.YFINANCE) for k in keys}
 
 
-def test_glance_has_live_row_with_timestamp():
-    rows = vm.build_glance_rows(
-        _fields(), {}, live_label="Pre-market as of 8:25 CT",
-        live_why="x", events_why="x", earnings_why="x", washington_why="x", bottom_line="x",
-    )
-    live = [r for r in rows if r.is_live]
-    assert len(live) == 1
-    assert live[0].category == "This morning"
-    assert live[0].timestamp == "Pre-market as of 8:25 CT"
+def test_glance_has_five_figure_rows_no_live_row():
+    # The redesign promotes the live "This morning" row out of the glance into the
+    # fenced live zone; the glance is now exactly the five settled figure rows.
+    rows = vm.build_glance_rows(_fields(), {})
+    assert len(rows) == 5
+    assert [r.category for r in rows] == [
+        "Markets", "Rates and dollar", "Commodities", "Crypto", "Volatility"
+    ]
+    assert not any(r.is_live for r in rows)
 
 
 def test_glance_markets_row_links_figures():
-    rows = vm.build_glance_rows(
-        _fields(), {}, live_label="L",
-        live_why="x", events_why="x", earnings_why="x", washington_why="x", bottom_line="x",
-    )
+    rows = vm.build_glance_rows(_fields(), {})
     markets = next(r for r in rows if r.category == "Markets")
     assert all(c.url for c in markets.figures)
     assert any("GSPC" in c.url for c in markets.figures)
+
+
+def test_glance_figures_carry_direction():
+    rows = vm.build_glance_rows(_fields(), {}, directions={"sp500": "up", "dow": "down"})
+    markets = next(r for r in rows if r.category == "Markets")
+    by_label = {c.label: c.direction for c in markets.figures}
+    assert by_label["S&P"] == "up"
+    assert by_label["Dow"] == "down"
+    assert by_label["Nasdaq"] == "flat"  # unspecified defaults to flat
 
 
 def test_sections_top_story_first_and_marked():
@@ -55,3 +61,53 @@ def test_favicons_only_on_movers_and_watchlist():
     assert by_id["us_equities"].favicons == ()
     assert by_id["movers"].favicons[0]["ticker"] == "NVDA"
     assert by_id["movers"].favicons[0]["favicon"] is not None
+
+
+def test_what_to_watch_skipped_as_body_section():
+    # Rendered once by the dedicated forward block, never as a body section (fix #3).
+    order = ["us_equities", "what_to_watch_today", "movers"]
+    sections = vm.build_sections(order, {}, top_story_id="us_equities")
+    assert all(s.section_id != "what_to_watch_today" for s in sections)
+    assert [s.section_id for s in sections] == ["us_equities", "movers"]
+
+
+def test_sections_carry_resolved_citations():
+    cited = {"us_equities": ({"title": "Reuters: Stocks rise", "url": "https://reuters.com/x"},)}
+    sections = vm.build_sections(["us_equities"], {"us_equities": "Up on AI."},
+                                 top_story_id="us_equities", cited_by_section=cited)
+    src = sections[0].sources
+    assert src == ({"label": "Reuters: Stocks rise", "url": "https://reuters.com/x"},)
+
+
+def test_empty_citation_yields_no_source_label():
+    sections = vm.build_sections(["commodities"], {"commodities": "Oil quiet."},
+                                 top_story_id="us_equities",
+                                 cited_by_section={"commodities": ()})
+    assert sections[0].sources == ()
+
+
+def test_hbars_only_on_top_story_sparklines_only_on_watchlist():
+    bars, maxabs = vm.build_hbars({"S&P": 0.4, "Russell": -1.2})
+    sparks = vm.build_sparklines({"SPCX": [3, 4, 5]})
+    order = ["us_equities", "watchlist", "movers"]
+    sections = vm.build_sections(order, {}, top_story_id="us_equities",
+                                 hbars=bars, hbar_maxabs=maxabs, sparklines=sparks)
+    by_id = {s.section_id: s for s in sections}
+    assert by_id["us_equities"].hbars == bars
+    assert by_id["movers"].hbars == ()           # only the Top Story gets the bar
+    assert by_id["watchlist"].sparklines == sparks
+    assert by_id["us_equities"].sparklines == ()  # only watchlist gets sparklines
+
+
+def test_build_hbars_shares_one_scale():
+    bars, maxabs = vm.build_hbars({"A": 0.4, "B": -1.2, "C": None})
+    assert maxabs == 1.2
+    assert {b.label for b in bars} == {"A", "B"}  # None dropped
+
+
+def test_section_charts_attach_by_section():
+    charts = {"commodities": {"cid": "chart_oil", "caption": "yfinance CL=F", "caption_url": "https://x"}}
+    sections = vm.build_sections(["commodities"], {}, top_story_id="us_equities",
+                                 section_charts=charts)
+    assert sections[0].chart_cid == "chart_oil"
+    assert sections[0].chart_caption == "yfinance CL=F"

@@ -39,6 +39,28 @@ def test_inline_image_is_attached_with_cid():
     assert len(images) == 1
 
 
+def test_outlook_reliable_mime_tree_shape():
+    # The Outlook-reliable tree: multipart/related[ multipart/alternative[text,
+    # html], image, image ] — images are SIBLINGS of the alternative, not children
+    # of the HTML part, each inline with an angle-bracketed Content-ID
+    # (HANDOFF_DESIGN CID fix). Anything else triggers the broken-chart-box bug.
+    msg = send_mod.build_message(
+        "S", '<html><body><img src="cid:a"><img src="cid:b"></body></html>',
+        text_fallback="plain",
+        inline_images=[("a", _PNG), ("b", _PNG)],
+    )
+    assert msg.get_content_type() == "multipart/related"
+    parts = list(msg.iter_parts())
+    assert parts[0].get_content_type() == "multipart/alternative"
+    sub = [p.get_content_type() for p in parts[0].iter_parts()]
+    assert sub == ["text/plain", "text/html"]
+    images = parts[1:]
+    assert [p.get_content_type() for p in images] == ["image/png", "image/png"]
+    for img in images:
+        assert img.get_content_disposition() == "inline"
+        assert img.get("Content-ID", "").startswith("<") and img.get("Content-ID", "").endswith(">")
+
+
 def test_empty_png_is_skipped():
     msg = send_mod.build_message(
         "S", "<html><body>x</body></html>", inline_images=[("empty", b"")],
