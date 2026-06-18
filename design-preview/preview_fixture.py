@@ -24,17 +24,17 @@ def build_view():
         vm.GlanceRow("Markets", (
             cell("S&P", "6,431", "up"), cell("Nasdaq", "21,054", "up"),
             cell("Dow", "44,210", "down"), cell("Russell", "2,318", "down"),
-        ), "Higher on the session"),
+        ), "Up 1.8% on the week and 4.0% on the month"),
         vm.GlanceRow("Rates and dollar", (
             cell("10Y", "4.43%", "up"), cell("2Y", "4.05%", "flat"), cell("DXY", "100.8", "up"),
-        ), "Higher on the session"),
+        ), "Up 7 bps on the week"),
         vm.GlanceRow("Commodities", (
             cell("WTI", "74.05", "down"), cell("Gold", "4,247", "up"),
-        ), "Lower on the session"),
+        ), "Down 2.0% on the week and 6.0% on the month"),
         vm.GlanceRow("Crypto", (
             cell("BTC", "62,636", "up"), cell("ETH", "1,687", "down"),
-        ), "Higher on the session"),
-        vm.GlanceRow("Volatility", (cell("VIX", "16.98", "down"),), "Lower on the session"),
+        ), "Up 3.1% on the week"),
+        vm.GlanceRow("Volatility", (cell("VIX", "16.98", "down"),), "Down 9.0% on the week"),
     )
     text_rows = (
         ("Today's events", "Initial jobless claims, 7:30 CT; Fed's Williams speaks midday."),

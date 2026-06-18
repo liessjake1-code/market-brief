@@ -97,7 +97,7 @@
 {# Per-section inline charts + ticker rows, drawn from validated view fields. #}
 {%- macro section_extras(section) -%}
   {% if section.hbars %}
-  <div style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:1px;padding:12px 0 4px 0;">Index daily change</div>
+  <div style="font-family:{{ SANS }};font-size:9px;color:#8a877f;text-transform:uppercase;letter-spacing:1px;padding:12px 0 4px 0;">Index change, week</div>
   <table role="presentation" cellpadding="0" cellspacing="0">{% for b in section.hbars %}{{ hbar(b.label, b.pct, section.hbar_maxabs) }}{% endfor %}</table>
   {% endif %}
   {% if section.chart_cid %}

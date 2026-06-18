@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from engine import context as ctx_mod
 from engine import diff as diff_mod
 from engine.metrics import METRICS_BY_KEY, is_yield
 from sources.quality import Field
@@ -106,10 +107,13 @@ def computed_section_line(
     value = _fmt(field.value, field.metric)
     move = _move_clause(history, field.metric)
     rng = _range_clause(history)
+    # Trailing week/month context: the single most informative add (redesign).
+    time_clause = ctx_mod.context_clause(ctx_mod.time_context(history, field.metric), field.metric)
 
     head = f"{label} at {value}"
     if move:
         head += f", {move}"
+    head += time_clause
     if rng:
         head += f", {rng}"
     head += "."

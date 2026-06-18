@@ -83,6 +83,28 @@ def _to_png(fig) -> bytes:
     return buf.getvalue()
 
 
+# A "month" of trading sessions, so trend charts show ~a month rather than the
+# whole rolling backfill (which can span a far larger, alarming-looking move).
+_MONTH_SESSIONS = 21
+
+
+def _pad_ylim(ax, series: list[float], *, min_frac: float = 0.01) -> None:
+    """Pad the y-limits so a small real range is not magnified into a sawtooth.
+
+    A 14 bps move over a month is real but tiny; left to autoscale, matplotlib
+    fills the panel and the line reads as random noise. We enforce a minimum
+    visible span of `min_frac` of the series level (e.g. 1% of a 4.4% yield ~ 4
+    bps floor) centered on the data, and add light headroom, so a quiet metric
+    reads as a quiet, gently-sloped line.
+    """
+    lo, hi = min(series), max(series)
+    mid = (lo + hi) / 2.0
+    span = hi - lo
+    floor = abs(mid) * min_frac
+    half = max(span, floor) / 2.0 * 1.3  # 1.3 = light headroom above/below
+    ax.set_ylim(mid - half, mid + half)
+
+
 def index_change_bar(changes: dict[str, float], *, cid: str = "chart_index") -> Optional[Chart]:
     """Daily percent-change bar across the indices (spec §6 default-on).
 
@@ -141,10 +163,11 @@ def yield_curve_and_trend(
         ax_curve.axis("off")
 
     if have_trend:
-        series = [v for v in ten_year_history if v is not None]
+        series = [v for v in ten_year_history if v is not None][-_MONTH_SESSIONS:]
         ax_trend.plot(range(len(series)), series, color=BLUE, linewidth=1.8)
         ax_trend.set_title("10-year trend", color=INK, fontsize=10, **_CHART_FONT)
         ax_trend.set_xticks([])
+        _pad_ylim(ax_trend, series)
     else:
         ax_trend.axis("off")
 
@@ -158,8 +181,12 @@ def yield_curve_and_trend(
 
 
 def wti_trend(history: list[float], *, cid: str = "chart_oil") -> Optional[Chart]:
-    """WTI crude 1-month trend (spec §6 default-on). Returns None on thin data."""
-    series = [v for v in history if v is not None]
+    """WTI crude trailing one-month trend (spec §6 default-on).
+
+    Clamps to the last ~21 sessions so the chart shows a month, not the entire
+    rolling backfill. Returns None on thin data.
+    """
+    series = [v for v in history if v is not None][-_MONTH_SESSIONS:]
     if len(series) < 2:
         return None
     fig, ax = _new_axes(4.8, 2.6)

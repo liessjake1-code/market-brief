@@ -57,3 +57,27 @@ def test_white_palette_constants():
     assert charts.PAPER == "#FFFFFF"
     assert charts.BLUE == "#3a6ea5"
     assert charts.INK == "#1b1a17"
+
+
+def test_wti_clamps_to_a_month_window():
+    # A long backfill (e.g. 108 -> 74 over 25 sessions) must not be drawn whole;
+    # the chart shows the trailing ~21 sessions so it reads as a month, not a crash.
+    long_hist = [108.0 - i for i in range(40)]  # 40 descending sessions
+    chart = charts.wti_trend(long_hist)
+    assert chart is not None
+    # The summary computes pct over the *clamped* window, not the full 40 sessions.
+    # Full 40-session drop would be ~36%; a 21-session window is ~ -20/87 ~ -23%.
+    assert "down" in chart.summary
+    assert "WTI" in chart.summary
+
+
+def test_pad_ylim_widens_a_tiny_range(monkeypatch):
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    series = [4.43, 4.44, 4.43, 4.45, 4.43]  # ~2 bps range
+    charts._pad_ylim(ax, series)
+    lo, hi = ax.get_ylim()
+    plt.close(fig)
+    # The enforced floor (1% of ~4.4 = ~4.4 bps) widens the view well past the
+    # 2 bps data range, so the line is not magnified into a sawtooth.
+    assert (hi - lo) > 0.04
