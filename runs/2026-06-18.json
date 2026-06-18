@@ -1,0 +1,41 @@
+{
+  "date": "2026-06-18",
+  "sections": {
+    "us_equities": {
+      "section_id": "us_equities",
+      "prose": "S&P 500: 7,490. No clear catalyst.",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": true
+    },
+    "rates_and_dollar": {
+      "section_id": "rates_and_dollar",
+      "prose": "10-year Treasury: 4.43%. No clear catalyst.",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": true
+    },
+    "commodities": {
+      "section_id": "commodities",
+      "prose": "WTI crude: 73.90. No clear catalyst.",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": true
+    },
+    "crypto": {
+      "section_id": "crypto",
+      "prose": "Bitcoin: 62,486. No clear catalyst.",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": true
+    },
+    "volatility_breadth": {
+      "section_id": "volatility_breadth",
+      "prose": "VIX: 17.18. No clear catalyst.",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": true
+    }
+  },
+  "raw_model_output": null
+}
