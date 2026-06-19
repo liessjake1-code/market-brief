@@ -1,0 +1,170 @@
+{
+  "date": "2026-06-19",
+  "sections": {
+    "us_equities": {
+      "section_id": "us_equities",
+      "prose": "Stocks rebounded broadly after the United States and Iran signed an interim peace deal, with small-cap and broad indices leading the advance in a risk-on tone.",
+      "cause_source_id": "wsj-23",
+      "confidence": "high",
+      "templated": false,
+      "cited_sources": [
+        {
+          "title": "U.S. Stocks Poised to Close Week on Strong Note",
+          "url": "https://www.wsj.com/finance/stocks/treasurys-stock-futures-rebound-on-u-s-iran-agreement-fed-reaction-512ef8ce?mod=rss_markets_main"
+        }
+      ]
+    },
+    "rates_and_dollar": {
+      "section_id": "rates_and_dollar",
+      "prose": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as chairman, with markets pricing in a higher-for-longer rate path.",
+      "cause_source_id": "wsj-40",
+      "confidence": "high",
+      "templated": false,
+      "cited_sources": [
+        {
+          "title": "Treasury Yields, Dollar Rise on First Fed Move Under Warsh",
+          "url": "https://www.wsj.com/finance/currencies/asian-currencies-consolidate-before-decision-by-warsh-led-fomc-57537bfa?mod=rss_markets_main"
+        }
+      ]
+    },
+    "commodities": {
+      "section_id": "commodities",
+      "prose": "Oil fell over the week as the reopening of the Strait of Hormuz and progress on a US-Iran peace deal raised expectations of a significant surge in supply, with the IEA warning of a major oil overhang ahead.",
+      "cause_source_id": "cnbc-9",
+      "confidence": "high",
+      "templated": false,
+      "cited_sources": [
+        {
+          "title": "OPEC chief dismisses IEA supply glut forecast as 'critical' Strait of Hormuz reopens",
+          "url": "https://www.cnbc.com/2026/06/18/opec-iea-supply-glut-forecast-critical-strait-hormuz-reopens-oil.html"
+        }
+      ]
+    },
+    "crypto": {
+      "section_id": "crypto",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "volatility_breadth": {
+      "section_id": "volatility_breadth",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "stock:SPCX": {
+      "section_id": "stock:SPCX",
+      "prose": "SpaceX shares pulled back for a second consecutive day as initial post-IPO investor enthusiasm showed signs of waning following the stock's sharp run-up after its historic debut.",
+      "cause_source_id": "cnbc-25",
+      "confidence": "high",
+      "templated": false,
+      "cited_sources": [
+        {
+          "title": "SpaceX stock sinks for a second day as company slips below Amazon in market cap",
+          "url": "https://www.cnbc.com/2026/06/18/spacex-stock-elon-musk-rally-cools.html"
+        }
+      ]
+    },
+    "stock:QUBT": {
+      "section_id": "stock:QUBT",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "stock:TSLA": {
+      "section_id": "stock:TSLA",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "stock:NVDA": {
+      "section_id": "stock:NVDA",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "stock:AMD": {
+      "section_id": "stock:AMD",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    },
+    "stock:AAPL": {
+      "section_id": "stock:AAPL",
+      "prose": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low",
+      "templated": false,
+      "cited_sources": []
+    }
+  },
+  "raw_model_output": {
+    "us_equities": {
+      "cause": "Stocks rebounded broadly after the United States and Iran signed an interim peace deal, with small-cap and broad indices leading the advance in a risk-on tone.",
+      "cause_source_id": "wsj-23",
+      "confidence": "high"
+    },
+    "rates_and_dollar": {
+      "cause": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as chairman, with markets pricing in a higher-for-longer rate path.",
+      "cause_source_id": "wsj-40",
+      "confidence": "high"
+    },
+    "commodities": {
+      "cause": "Oil fell over the week as the reopening of the Strait of Hormuz and progress on a US-Iran peace deal raised expectations of a significant surge in supply, with the IEA warning of a major oil overhang ahead.",
+      "cause_source_id": "cnbc-9",
+      "confidence": "high"
+    },
+    "crypto": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "volatility_breadth": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "stock:SPCX": {
+      "cause": "SpaceX shares pulled back for a second consecutive day as initial post-IPO investor enthusiasm showed signs of waning following the stock's sharp run-up after its historic debut.",
+      "cause_source_id": "cnbc-25",
+      "confidence": "high"
+    },
+    "stock:QUBT": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "stock:TSLA": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "stock:NVDA": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "stock:AMD": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    },
+    "stock:AAPL": {
+      "cause": "no clear catalyst",
+      "cause_source_id": null,
+      "confidence": "low"
+    }
+  }
+}
