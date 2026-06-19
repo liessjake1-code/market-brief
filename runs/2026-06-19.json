@@ -3,7 +3,7 @@
   "sections": {
     "us_equities": {
       "section_id": "us_equities",
-      "prose": "Stocks rebounded broadly after the United States and Iran signed an interim peace deal, with small-cap and broad indices leading the advance in a risk-on tone.",
+      "prose": "Stocks rebounded broadly after the U.S. and Iran signed an interim peace agreement, with small-cap and large-cap indices both participating in the risk-on move.",
       "cause_source_id": "wsj-23",
       "confidence": "high",
       "templated": false,
@@ -16,7 +16,7 @@
     },
     "rates_and_dollar": {
       "section_id": "rates_and_dollar",
-      "prose": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as chairman, with markets pricing in a higher-for-longer rate path.",
+      "prose": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as Fed chairman, with markets pricing in a higher-for-longer rate outlook.",
       "cause_source_id": "wsj-40",
       "confidence": "high",
       "templated": false,
@@ -29,14 +29,14 @@
     },
     "commodities": {
       "section_id": "commodities",
-      "prose": "Oil fell over the week as the reopening of the Strait of Hormuz and progress on a US-Iran peace deal raised expectations of a significant surge in supply, with the IEA warning of a major oil overhang ahead.",
-      "cause_source_id": "cnbc-9",
-      "confidence": "high",
+      "prose": "Oil edged higher on the week after Vice President Vance postponed travel to Switzerland for Iran talks, injecting uncertainty into the peace process, while gold retreated as geopolitical risk eased following the U.S.-Iran interim agreement.",
+      "cause_source_id": "wsj-35",
+      "confidence": "medium",
       "templated": false,
       "cited_sources": [
         {
-          "title": "OPEC chief dismisses IEA supply glut forecast as 'critical' Strait of Hormuz reopens",
-          "url": "https://www.cnbc.com/2026/06/18/opec-iea-supply-glut-forecast-critical-strait-hormuz-reopens-oil.html"
+          "title": "Oil Rises After Vance Postpones Travel to Switzerland For Iran Talks",
+          "url": "https://www.wsj.com/finance/commodities-futures/oil-falls-on-signs-of-strait-of-hormuzs-reopening-e18fac1e?mod=rss_markets_main"
         }
       ]
     },
@@ -58,14 +58,14 @@
     },
     "stock:SPCX": {
       "section_id": "stock:SPCX",
-      "prose": "SpaceX shares pulled back for a second consecutive day as initial post-IPO investor enthusiasm showed signs of waning following the stock's sharp run-up after its historic debut.",
-      "cause_source_id": "cnbc-25",
+      "prose": "SpaceX shares surged following the company's historic market debut, which was described as the biggest IPO in market history and minted a trillionaire, driving intense investor demand including a land grab in leveraged ETFs.",
+      "cause_source_id": "cnbc-4",
       "confidence": "high",
       "templated": false,
       "cited_sources": [
         {
-          "title": "SpaceX stock sinks for a second day as company slips below Amazon in market cap",
-          "url": "https://www.cnbc.com/2026/06/18/spacex-stock-elon-musk-rally-cools.html"
+          "title": "The riskiest SpaceX stock trade of all had a big first week",
+          "url": "https://www.cnbc.com/2026/06/19/spacex-stock-risk-buy-sell.html"
         }
       ]
     },
@@ -112,19 +112,19 @@
   },
   "raw_model_output": {
     "us_equities": {
-      "cause": "Stocks rebounded broadly after the United States and Iran signed an interim peace deal, with small-cap and broad indices leading the advance in a risk-on tone.",
+      "cause": "Stocks rebounded broadly after the U.S. and Iran signed an interim peace agreement, with small-cap and large-cap indices both participating in the risk-on move.",
       "cause_source_id": "wsj-23",
       "confidence": "high"
     },
     "rates_and_dollar": {
-      "cause": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as chairman, with markets pricing in a higher-for-longer rate path.",
+      "cause": "Treasury yields and the dollar rose after the Federal Reserve held rates in a unanimous decision at Kevin Warsh's first meeting as Fed chairman, with markets pricing in a higher-for-longer rate outlook.",
       "cause_source_id": "wsj-40",
       "confidence": "high"
     },
     "commodities": {
-      "cause": "Oil fell over the week as the reopening of the Strait of Hormuz and progress on a US-Iran peace deal raised expectations of a significant surge in supply, with the IEA warning of a major oil overhang ahead.",
-      "cause_source_id": "cnbc-9",
-      "confidence": "high"
+      "cause": "Oil edged higher on the week after Vice President Vance postponed travel to Switzerland for Iran talks, injecting uncertainty into the peace process, while gold retreated as geopolitical risk eased following the U.S.-Iran interim agreement.",
+      "cause_source_id": "wsj-35",
+      "confidence": "medium"
     },
     "crypto": {
       "cause": "no clear catalyst",
@@ -137,8 +137,8 @@
       "confidence": "low"
     },
     "stock:SPCX": {
-      "cause": "SpaceX shares pulled back for a second consecutive day as initial post-IPO investor enthusiasm showed signs of waning following the stock's sharp run-up after its historic debut.",
-      "cause_source_id": "cnbc-25",
+      "cause": "SpaceX shares surged following the company's historic market debut, which was described as the biggest IPO in market history and minted a trillionaire, driving intense investor demand including a land grab in leveraged ETFs.",
+      "cause_source_id": "cnbc-4",
       "confidence": "high"
     },
     "stock:QUBT": {
