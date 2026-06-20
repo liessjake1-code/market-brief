@@ -45,3 +45,20 @@ def test_keyword_table_and_regex_present():
     assert "us_equities" in SECTION_KEYWORDS
     assert CAUSAL_RE.search("yields fell on soft demand")
     assert not CAUSAL_RE.search("yields were unchanged today")
+
+
+from marketbrief.match.scorer import match_sections
+from marketbrief.core.config import Config
+
+
+def test_match_sections_covers_every_section():
+    arts = [_a("Oil and crude and opec spike", "barrel brent energy")]
+    out = match_sections(arts, Config())
+    assert set(out.keys()) == set(SECTION_KEYWORDS.keys())
+    assert any(out["commodities"])  # the oil article landed in commodities
+
+
+def test_watchlist_uses_config_tickers():
+    arts = [_a("NVDA NVDA NVDA surges on guidance", "nvda")]
+    out = match_sections(arts, Config(watchlist=["nvda"]))
+    assert any(out["watchlist"])

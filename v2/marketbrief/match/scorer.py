@@ -48,3 +48,12 @@ def match_section(
     if not top or top[0].match_score < MATCH_SCORE_THRESHOLD:
         return []
     return top
+
+
+def match_sections(articles: list[Article], config) -> dict[str, list[ScoredArticle]]:
+    """Run match_section for every known section; watchlist gets config tickers."""
+    out: dict[str, list[ScoredArticle]] = {}
+    for section_id in SECTION_KEYWORDS:
+        extra = list(config.watchlist) if section_id == "watchlist" else None
+        out[section_id] = match_section(section_id, articles, extra_keywords=extra)
+    return out
