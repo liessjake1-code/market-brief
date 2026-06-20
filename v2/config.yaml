@@ -1,0 +1,4 @@
+resilience:
+  degraded_stale_threshold: 2
+  hard_floor_missing_threshold: 4
+watchlist: []

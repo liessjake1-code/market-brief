@@ -1,0 +1,29 @@
+from datetime import date
+from pathlib import Path
+from marketbrief.core.enums import RunMode
+import brief
+
+
+def _cfg(tmp_path: Path) -> Path:
+    p = tmp_path / "config.yaml"
+    p.write_text("resilience:\n  degraded_stale_threshold: 2\n  hard_floor_missing_threshold: 4\nwatchlist: []\n")
+    return p
+
+
+def test_no_send_builds_brief_and_writes_no_state(tmp_path: Path):
+    state = tmp_path / "last_run.json"
+    code, html = brief.build_brief(
+        mode=RunMode.NO_SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
+    )
+    assert code == 0
+    assert "At a Glance" in html
+    assert not state.exists()  # the load-bearing invariant, end to end
+
+
+def test_send_writes_state(tmp_path: Path):
+    state = tmp_path / "last_run.json"
+    code, html = brief.build_brief(
+        mode=RunMode.SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
+    )
+    assert code == 0
+    assert state.exists()
