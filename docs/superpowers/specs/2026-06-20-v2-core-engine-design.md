@@ -126,11 +126,56 @@ BriefContext (Pydantic, frozen):
 - `compute` reads `facts` and derives all numbers in Python. The model never
   computes or alters a number (spec §1, §2).
 - `match` ties moves to news causes (`cause_source_id`), or leaves them uncaused.
-- `narrate` writes the "why" per section, each behind validators that may only
-  *reference* numbers `compute` produced. A validator failure falls back to a
-  templated line and never blocks.
+  The current deterministic keyword/ticker scorer (`engine/matcher.py`) is ported
+  as the fast first pass; a semantic layer is added in sub-project #3.
+- `narrate` is **two-phase and validator-driven**, per section:
+  1. **Write.** The model writes the "why" for one section, constrained to the
+     matched candidate articles, tagging each causal claim with a `cause_source_id`.
+     The model may only reference numbers `compute` produced; it never invents one.
+  2. **Validate.** A registered chain of validators runs over the prose. Each
+     validator can pass, **hedge** (soften a claim), or **strip** a cause (downgrade
+     it to "no clear catalyst"). Validators are either cheap mechanical checks or
+     model calls. Any failure degrades that section to a templated line; narration
+     never blocks the brief.
+
+  This sub-project ships the validator-chain seam plus the ported tag-only cause
+  check (`check_cause`: a causal verb requires a non-null `cause_source_id`). The
+  **entailment validator** — a second, cheaper model pass that judges whether the
+  cited article actually *supports* the claim (yes -> keep, weak -> hedge,
+  no -> strip) — is registered into this chain in sub-project #3. The core engine
+  must expose the chain so the entailment check slots in without reworking `narrate`.
+  This closes the gap the current code documents but does not solve:
+  tag-only checking proves a cause is tagged to a real article, not that the article
+  supports it.
 - `assemble` lets each Section build its VM from the now-complete context.
 - `render` + `send` finish.
+
+### 3.1 The "why" pipeline and the validator chain
+
+The "why" is the product's core promise (spec §1, §2), so its mechanics are pinned
+here even though the deep work is sub-project #3. The chain a causal claim passes
+through:
+
+```
+compute (number, in Python)
+  -> match (deterministic scorer attaches top 2-3 candidate articles, or none)
+  -> narrate.write (model writes prose tagged with cause_source_id, per section)
+  -> narrate.validate (ordered ValidatorChain):
+       Validator Protocol: judge(claim, article, numbers) -> PASS | HEDGE | STRIP
+       - tag-only check  (ported now): causal verb requires a cause_source_id
+       - entailment check (added in #3): cheaper model pass; does the cited
+         article support the claim?  yes -> PASS, weak -> HEDGE, no -> STRIP
+  -> result: kept cause | hedged cause | "no clear catalyst" | templated fallback
+```
+
+`STRIP` downgrades to "no clear catalyst" (an encouraged output, spec §2).
+`HEDGE` softens the claim. A thrown validator or a model failure degrades the whole
+section to its templated line. The chain is a list of `Validator` Protocols, so #3
+adds entailment by appending one validator — no `narrate` rework.
+
+**Budget:** the entailment pass is one extra cheap model call per causal section per
+weekday. The whole pipeline stays under the spec's "under a dollar a month" bar
+(spec §9); the plan must confirm the model-tier choice against that bar.
 
 Health gates live in the orchestrator: after `fetch`, too many core fields missing
 trips the hard floor; stale core data raises the degrade banner. The set of "core
@@ -182,6 +227,12 @@ contracts first, because they protect everything built after.
 3. **Per-plugin unit tests** — compute math, diff logic, movers selection (thin-volume
    floor), matcher, validators (model may only reference computed numbers).
 
+   **Validator chain** specifically: a fake validator returning PASS/HEDGE/STRIP
+   drives the prose to keep/hedge/"no clear catalyst" respectively; a throwing
+   validator degrades only its section to templated. This proves the entailment
+   seam works before #3 fills in the real entailment validator (which is tested
+   in #3 against fixture articles, not live model calls).
+
 4. **Pipeline integration test** — full run under `MARKET_BRIEF_OFFLINE=1` with
    synthesized clean facts; asserts a complete brief renders deterministically with
    no network.
@@ -203,10 +254,13 @@ network, exactly as today.
 - Coverage >= 80%.
 - The orchestrator is ~100 lines; adding a new source or section requires no
   orchestrator edits.
+- The `narrate` validator chain exists and is exercised by a fake validator;
+  registering the entailment validator in #3 requires no `narrate` rework.
 
 ## Out of scope (later sub-projects)
 
 - Real expanded data providers, cross-checks, caching strategy (#2).
-- Model prompt tuning, latest-model wiring, advanced matching (#3).
+- Model prompt tuning, latest-model wiring, semantic matching, and the entailment
+  validator itself (#3). The core engine ships only the validator-chain *seam*.
 - Final email design, chart redesign, web companion (#4).
 - GitHub Actions cutover from v1 to v2 (after v2 is proven).
