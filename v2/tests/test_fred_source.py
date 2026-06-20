@@ -51,3 +51,27 @@ def test_offline_returns_clean_fields(monkeypatch):
     monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
     result = FredSource().fetch(_ctx())
     assert result.fields["ust10y"].is_usable
+
+
+def test_real_fetcher_does_not_leak_api_key_in_error(monkeypatch):
+    import requests
+    from marketbrief.sources import fred_source
+
+    monkeypatch.setenv("FRED_API_KEY", "SECRET_KEY_123")
+
+    class _Resp:
+        status_code = 403
+        url = "https://api.stlouisfed.org/fred/series/observations?api_key=SECRET_KEY_123"
+
+    def boom(*args, **kwargs):
+        err = requests.HTTPError("403 Client Error: url=" + _Resp.url)
+        err.response = _Resp()
+        raise err
+
+    monkeypatch.setattr(requests, "get", boom)
+    try:
+        fred_source._real_series_fetcher("DGS10", 5)
+        assert False, "expected RuntimeError"
+    except RuntimeError as exc:
+        assert "SECRET_KEY_123" not in str(exc)
+        assert exc.__cause__ is None  # original (URL-bearing) chain suppressed
