@@ -68,3 +68,9 @@ design-preview/*.html
 design-preview/*.png
 Screenshot *.png
 daily_market_brief_claude_design.html
+
+# v2 environment
+v2/.venv/
+v2/brief.preview.html
+v2/__pycache__/
+v2/.pytest_cache/
