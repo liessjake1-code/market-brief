@@ -43,4 +43,8 @@ def test_history_derived_figures_absent():
     # No rolling history in #3: nothing like *_5d_high / *_streak appears.
     resolved = {"ust10y": _f("ust10y", 4.25)}
     out = derive_numbers(resolved, CFG)
-    assert not any("_5d" in k or "_20d" in k or "streak" in k for k in out.values)
+    assert not any(
+        "_5d" in k or "_20d" in k or "streak" in k
+        or "weekly" in k or "z_score" in k or "yesterday" in k
+        for k in out.values
+    )

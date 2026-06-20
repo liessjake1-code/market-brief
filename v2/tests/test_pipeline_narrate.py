@@ -28,7 +28,7 @@ def _ctx():
 
 
 def test_pipeline_narrates_and_validates_with_fake_client():
-    ctx = run_pipeline(_ctx(), sources=[], sections=[], news_source=_NoNews(),
+    ctx = run_pipeline(_ctx(), sources=[], sections=[], news_source=_SeedNews(),
                        narration_client=FakeClient())
     why = ctx.narration["commodities"]
     assert why.text == "Oil rose on OPEC supply cut."
@@ -60,6 +60,8 @@ def test_contradicts_verdict_degrades_narrated_section():
     why = ctx.narration["commodities"]
     assert why.degraded is True
     assert why.causes[0].verdict == Verdict.STRIP
+    assert why.text == "No model commentary available; see the figures above."
+    assert why.text != "Oil rose on an OPEC supply cut."
 
 
 class _NoNews:

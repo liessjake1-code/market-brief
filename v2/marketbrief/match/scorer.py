@@ -4,7 +4,6 @@ No model. Scores each candidate article by title (weight 2) + summary overlap an
 attaches the top 2-3 with their numeric match_score so a weak match is visible.
 An empty result pushes the model toward 'no clear catalyst' (spec §4.3, §5.6)."""
 from __future__ import annotations
-import re
 from dataclasses import dataclass
 from marketbrief.core.models import Article
 from marketbrief.match.keywords import SECTION_KEYWORDS
@@ -17,10 +16,6 @@ TOP_ARTICLES = 3
 class ScoredArticle:
     article: Article
     match_score: float
-
-
-def _terms(text: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9&\-]+", text.lower()))
 
 
 def score_article(article: Article, keywords: list[str]) -> float:

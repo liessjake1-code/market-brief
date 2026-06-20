@@ -14,6 +14,7 @@ from marketbrief.narrate.client import build_client
 from marketbrief.narrate.chain import run_chain, TagOnlyCauseCheck
 from marketbrief.narrate.number_check import NumberCheck
 from marketbrief.narrate.entailment import EntailmentCheck
+from marketbrief.narrate.templated import templated_why
 
 
 def _fetch(ctx: BriefContext, sources: list) -> BriefContext:
@@ -59,10 +60,14 @@ def _narrate(ctx: BriefContext, client) -> BriefContext:
     for sid, why in narration.items():
         new_causes = [run_chain(c, ctx, validators) for c in why.causes]
         stripped = any(c.verdict == Verdict.STRIP for c in new_causes)
-        judged[sid] = why.model_copy(update={
-            "causes": new_causes,
-            "degraded": why.degraded or stripped,
-        })
+        if stripped:
+            judged[sid] = templated_why(sid, ctx.numbers).model_copy(
+                update={"causes": new_causes})
+        else:
+            judged[sid] = why.model_copy(update={
+                "causes": new_causes,
+                "degraded": why.degraded,
+            })
         all_causes.extend(new_causes)
     return ctx.with_updates(narration=judged, causes=all_causes)
 
