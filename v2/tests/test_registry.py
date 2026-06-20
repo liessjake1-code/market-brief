@@ -1,9 +1,16 @@
 from marketbrief.core.registry import discover_sources, discover_sections
 
 
-def test_discovers_placeholder_source():
+def test_discovers_real_numeric_sources():
     names = [s.name for s in discover_sources()]
-    assert "placeholder" in names
+    assert "yfinance" in names
+    assert "fred" in names
+    assert "stooq" in names
+
+
+def test_rss_not_discovered_as_datasource():
+    names = [s.name for s in discover_sources()]
+    assert "rss" not in names  # RssSource has fetch_news, not fetch
 
 
 def test_discovers_summary_section():

@@ -9,9 +9,11 @@ def _ctx() -> BriefContext:
     return BriefContext(run_date=date(2026, 6, 20), mode=RunMode.NO_SEND, config=Config(), prev_state={})
 
 
-def test_pipeline_fetches_and_assembles():
+def test_pipeline_fetches_and_assembles(monkeypatch):
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
     out = run_pipeline(_ctx())
-    assert "placeholder" in out.facts
+    assert "yfinance" in out.facts
+    assert out.resolved_fields  # resolver produced fields
     assert any(s.id == "summary" for s in out.sections)
     assert out.health.hard_floor_tripped is False
 
@@ -31,6 +33,6 @@ def test_failing_section_is_isolated():
         id = "boom"; order = 1
         def build(self, ctx): raise RuntimeError("render error")
         def is_quiet(self, ctx): return False
-    out = run_pipeline(_ctx(), sections=[BoomSection()])
+    out = run_pipeline(_ctx(), sources=[], sections=[BoomSection()])
     # boom section dropped, but pipeline finished
     assert all(s.id != "boom" for s in out.sections)
