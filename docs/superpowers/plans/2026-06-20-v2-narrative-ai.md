@@ -611,7 +611,7 @@ from marketbrief.narrate.number_check import validate_prose, NumberCheck
 
 def _ctx(values):
     return BriefContext(
-        run_date=date(2026, 6, 22), mode=RunMode.FULL, config=Config(),
+        run_date=date(2026, 6, 22), mode=RunMode.NO_SEND, config=Config(),
         numbers=ComputedNumbers(values=values),
     )
 
@@ -1045,7 +1045,7 @@ CFG = NarrateConfig()
 
 
 def _ctx(articles):
-    return BriefContext(run_date=date(2026, 6, 22), mode=RunMode.FULL,
+    return BriefContext(run_date=date(2026, 6, 22), mode=RunMode.NO_SEND,
                         config=Config(), articles=articles)
 
 
@@ -1212,7 +1212,7 @@ class FakeClient:
 
 def _ctx():
     return BriefContext(
-        run_date=date(2026, 6, 22), mode=RunMode.FULL, config=Config(),
+        run_date=date(2026, 6, 22), mode=RunMode.NO_SEND, config=Config(),
         articles=[Article(source_id="cnbc-1", title="Oil jumps on OPEC cut",
                           summary="opec supply")],
     )
