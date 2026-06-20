@@ -58,3 +58,17 @@ class HealthReport(BaseModel):
     stale_core: list[str] = PField(default_factory=list)
     degraded: bool = False
     hard_floor_tripped: bool = False
+
+
+class Article(BaseModel):
+    source_id: str
+    title: str
+    summary: str = ""
+    url: str = ""
+
+
+class NewsResult(BaseModel):
+    name: str
+    articles: list[Article] = PField(default_factory=list)
+    health: SourceHealth = SourceHealth.OK
+    error: str | None = None
