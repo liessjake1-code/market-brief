@@ -8,7 +8,7 @@ from marketbrief.narrate.number_check import validate_prose, NumberCheck
 
 def _ctx(values):
     return BriefContext(
-        run_date=date(2026, 6, 22), mode=RunMode.FULL, config=Config(),
+        run_date=date(2026, 6, 22), mode=RunMode.NO_SEND, config=Config(),
         numbers=ComputedNumbers(values=values),
     )
 
