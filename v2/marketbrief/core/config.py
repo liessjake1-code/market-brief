@@ -9,9 +9,16 @@ class ResilienceConfig(BaseModel):
     hard_floor_missing_threshold: int = 4
 
 
+class NarrateConfig(BaseModel):
+    model: str = "claude-sonnet-4-6"
+    entailment_model: str = "claude-haiku-4-5"
+    max_tokens: int = 1500
+
+
 class Config(BaseModel):
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     watchlist: list[str] = Field(default_factory=list)
+    narrate: NarrateConfig = Field(default_factory=NarrateConfig)
 
 
 def load_config(path: str | Path) -> Config:

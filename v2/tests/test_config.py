@@ -30,3 +30,10 @@ def test_malformed_yaml_raises_valueerror(tmp_path: Path):
     p.write_text("resilience: [unclosed\n")
     with pytest.raises(ValueError):
         load_config(p)
+
+
+def test_narrate_config_defaults():
+    from marketbrief.core.config import Config
+    cfg = Config()
+    assert cfg.narrate.model == "claude-sonnet-4-6"
+    assert cfg.narrate.entailment_model == "claude-haiku-4-5"

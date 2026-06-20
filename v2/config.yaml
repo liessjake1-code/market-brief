@@ -2,3 +2,7 @@ resilience:
   degraded_stale_threshold: 2
   hard_floor_missing_threshold: 4
 watchlist: []
+narrate:
+  model: "claude-sonnet-4-6"
+  entailment_model: "claude-haiku-4-5"
+  max_tokens: 1500
