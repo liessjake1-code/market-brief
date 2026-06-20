@@ -27,3 +27,18 @@ def test_send_writes_state(tmp_path: Path):
     )
     assert code == 0
     assert state.exists()
+
+
+def test_hard_floor_returns_exit_2_and_writes_no_state(tmp_path: Path, monkeypatch):
+    # With zero sources, all core fields are missing => hard floor trips.
+    from marketbrief.core.pipeline import _fetch, _assess
+
+    monkeypatch.setattr(brief, "run_pipeline", lambda ctx: _assess(_fetch(ctx, [])))
+
+    state = tmp_path / "last_run.json"
+    code, html = brief.build_brief(
+        mode=RunMode.SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
+    )
+    assert code == brief.EXIT_HARD_FLOOR
+    assert "unavailable" in html.lower()
+    assert not state.exists()  # hard floor never writes state
