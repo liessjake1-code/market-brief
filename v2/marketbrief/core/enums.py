@@ -5,6 +5,7 @@ from enum import Enum
 class RunMode(str, Enum):
     SEND = "send"
     NO_SEND = "no_send"
+    FULL = "full"
 
 
 class SourceHealth(str, Enum):
