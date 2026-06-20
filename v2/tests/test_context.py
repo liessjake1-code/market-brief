@@ -3,7 +3,7 @@ import pytest
 from marketbrief.core.context import BriefContext
 from marketbrief.core.config import Config
 from marketbrief.core.enums import RunMode
-from marketbrief.core.models import ComputedNumbers
+from marketbrief.core.models import ComputedNumbers, Field, Article
 
 
 def _ctx() -> BriefContext:
@@ -23,3 +23,15 @@ def test_with_updates_returns_new_context():
     assert new.numbers.values["sp500"] == 5000.0
     assert ctx.numbers.values == {}  # original untouched
     assert new is not ctx
+
+
+def test_with_updates_sets_resolved_fields_and_articles():
+    ctx = _ctx()
+    new = ctx.with_updates(
+        resolved_fields={"sp500": Field(metric="sp500", value=5000.0, source="yfinance")},
+        articles=[Article(source_id="cnbc-1", title="x")],
+    )
+    assert new.resolved_fields["sp500"].value == 5000.0
+    assert new.articles[0].source_id == "cnbc-1"
+    assert ctx.resolved_fields == {}  # original untouched
+    assert ctx.articles == []
