@@ -10,7 +10,8 @@ def _cfg(tmp_path: Path) -> Path:
     return p
 
 
-def test_no_send_builds_brief_and_writes_no_state(tmp_path: Path):
+def test_no_send_builds_brief_and_writes_no_state(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
     state = tmp_path / "last_run.json"
     code, html = brief.build_brief(
         mode=RunMode.NO_SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
@@ -20,13 +21,25 @@ def test_no_send_builds_brief_and_writes_no_state(tmp_path: Path):
     assert not state.exists()  # the load-bearing invariant, end to end
 
 
-def test_send_writes_state(tmp_path: Path):
+def test_send_writes_state(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
     state = tmp_path / "last_run.json"
     code, html = brief.build_brief(
         mode=RunMode.SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
     )
     assert code == 0
     assert state.exists()
+
+
+def test_real_sources_offline_build_writes_no_state(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
+    state = tmp_path / "last_run.json"
+    code, html = brief.build_brief(
+        mode=RunMode.NO_SEND, config_path=_cfg(tmp_path), state_path=state, today=date(2026, 6, 20)
+    )
+    assert code == 0
+    assert "At a Glance" in html
+    assert not state.exists()
 
 
 def test_hard_floor_returns_exit_2_and_writes_no_state(tmp_path: Path, monkeypatch):
