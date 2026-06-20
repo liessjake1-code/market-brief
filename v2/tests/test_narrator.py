@@ -37,6 +37,7 @@ def test_successful_narration_tags_cause():
     assert w.text == "Oil rose on OPEC supply news."
     assert len(w.causes) == 1
     assert w.causes[0].cause_source_id == "cnbc-1"
+    assert w.causes[0].claim == "Oil rose on OPEC supply news."
 
 
 def test_client_failure_falls_back_to_templated():
