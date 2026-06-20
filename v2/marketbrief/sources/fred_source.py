@@ -22,8 +22,14 @@ def _real_series_fetcher(series_id: str, limit: int, *, units: Optional[str] = N
               "sort_order": "desc", "limit": limit}
     if units:
         params["units"] = units
-    resp = requests.get(FRED_BASE, params=params, timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(FRED_BASE, params=params, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        # Never let the api_key in the request URL leak into exception text,
+        # which flows into SourceResult.error and stderr logs.
+        status = getattr(getattr(exc, "response", None), "status_code", "error")
+        raise RuntimeError(f"FRED request failed for {series_id}: {status}") from None
     obs = resp.json().get("observations", [])
     out: list[tuple[str, float]] = []
     for o in obs:
