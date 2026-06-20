@@ -5,6 +5,8 @@ from marketbrief.core.enums import SourceHealth
 from marketbrief.core.isolation import run_isolated
 from marketbrief.core.registry import discover_sources, discover_sections
 from marketbrief.core.health import assess
+from marketbrief.fetch.resolver import resolve_fields
+from marketbrief.sources.rss_source import RssSource
 
 
 def _fetch(ctx: BriefContext, sources: list) -> BriefContext:
@@ -18,12 +20,20 @@ def _fetch(ctx: BriefContext, sources: list) -> BriefContext:
     return ctx.with_updates(facts=facts)
 
 
+def _resolve(ctx: BriefContext) -> BriefContext:
+    resolved = resolve_fields(ctx.facts, ctx.config)
+    return ctx.with_updates(resolved_fields=resolved)
+
+
+def _fetch_news(ctx: BriefContext, news_source) -> BriefContext:
+    result, err = run_isolated("news:rss", lambda: news_source.fetch_news(ctx), None)
+    articles = result.articles if result is not None else []
+    return ctx.with_updates(articles=articles)
+
+
 def _assess(ctx: BriefContext) -> BriefContext:
-    merged = {}
-    for result in ctx.facts.values():
-        merged.update(result.fields)
     report = assess(
-        merged,
+        ctx.resolved_fields,
         degraded_stale_threshold=ctx.config.resilience.degraded_stale_threshold,
         hard_floor_missing_threshold=ctx.config.resilience.hard_floor_missing_threshold,
     )
@@ -39,10 +49,14 @@ def _assemble(ctx: BriefContext, sections: list) -> BriefContext:
     return ctx.with_updates(sections=sorted(built, key=lambda v: v.order))
 
 
-def run_pipeline(ctx: BriefContext, *, sources: list | None = None, sections: list | None = None) -> BriefContext:
+def run_pipeline(ctx: BriefContext, *, sources: list | None = None,
+                 sections: list | None = None, news_source=None) -> BriefContext:
     sources = discover_sources() if sources is None else sources
     sections = discover_sections() if sections is None else sections
+    news_source = RssSource() if news_source is None else news_source
     ctx = _fetch(ctx, sources)
+    ctx = _resolve(ctx)
+    ctx = _fetch_news(ctx, news_source)
     ctx = _assess(ctx)
     # compute / match / narrate are pass-through stubs in this sub-project
     ctx = _assemble(ctx, sections)
