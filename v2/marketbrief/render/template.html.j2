@@ -102,7 +102,7 @@
                   {% if m.favicon_url %}<img src="{{ m.favicon_url }}" width="14" height="14" alt="" style="display:block;border:0;vertical-align:middle;">{% endif %}
                 </td>
                 <td style="padding:6px 8px 6px 0;vertical-align:middle;font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;font-weight:700;white-space:nowrap;">
-                  <a href="{{ m.source_url }}" style="color:#13202E;text-decoration:none;">{{ m.ticker }}</a>
+                  {% if m.source_url %}<a href="{{ m.source_url }}" style="color:#13202E;text-decoration:none;">{% endif %}{{ m.ticker }}{% if m.source_url %}</a>{% endif %}
                 </td>
                 <td style="padding:6px 8px 6px 0;vertical-align:middle;font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;color:{% if m.direction.value == 'up' or m.direction == 'up' %}#197A4B{% elif m.direction.value == 'down' or m.direction == 'down' %}#BC3B2E{% else %}#13202E{% endif %};white-space:nowrap;">{{ m.value_str }}</td>
                 <td style="padding:6px 0;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6B7785;">{{ m.why }}</td>
