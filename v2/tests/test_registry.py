@@ -13,9 +13,9 @@ def test_rss_not_discovered_as_datasource():
     assert "rss" not in names  # RssSource has fetch_news, not fetch
 
 
-def test_discovers_summary_section():
+def test_discovers_equities_section():
     ids = [s.id for s in discover_sections()]
-    assert "summary" in ids
+    assert "us_equities" in ids
 
 
 def test_sections_sorted_by_order():

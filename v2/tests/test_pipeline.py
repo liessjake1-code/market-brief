@@ -14,7 +14,7 @@ def test_pipeline_fetches_and_assembles(monkeypatch):
     out = run_pipeline(_ctx())
     assert "yfinance" in out.facts
     assert out.resolved_fields  # resolver produced fields
-    assert any(s.id == "summary" for s in out.sections)
+    assert any(s.id == "us_equities" for s in out.sections)
     assert out.health.hard_floor_tripped is False
 
 
