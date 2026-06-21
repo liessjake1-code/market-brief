@@ -49,6 +49,7 @@ def _fmt_value(field: Field) -> str:
 
 
 def figure_cell(metric: str, field: Field, *, change: float | None = None) -> FigureCell:
+    # change= is intentionally omitted until ComputedNumbers pre-compute wiring lands (deferred)
     return FigureCell(
         metric_label=METRIC_LABELS.get(metric, metric),
         value_str=_fmt_value(field),
