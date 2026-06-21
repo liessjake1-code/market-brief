@@ -14,6 +14,10 @@ def test_source_url_index_is_yahoo():
     assert "finance.yahoo.com" in source_url("sp500")
 
 
+def test_source_url_fred_only_metric_is_fred():
+    assert "fred.stlouisfed.org" in source_url("cpi_yoy")
+
+
 def test_source_url_unknown_is_none():
     assert source_url("not_a_metric") is None
 
