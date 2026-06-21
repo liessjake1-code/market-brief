@@ -81,7 +81,7 @@ class GlanceRow(BaseModel):
     model_config = ConfigDict(frozen=True)
     category: str
     latest: str
-    why_brief: str
+    why_brief: str = ""  # retired from At a Glance; kept for back-compat, always empty
     is_live: bool = False
 
 

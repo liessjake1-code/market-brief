@@ -10,22 +10,26 @@ _CATEGORIES = (
 )
 
 
+# Separator between labeled figures in a glance row, e.g. "S&P 5,000 · Nasdaq 18,000".
+_FIGURE_SEP = " · "  # middle dot
+
+
 def build_glance_rows(ctx, sections) -> list[GlanceRow]:
     by_id = {s.id: s for s in sections}
 
     def latest_for(*ids: str) -> str:
+        """Labeled figures only (no explanation): "S&P 5,000 · Nasdaq 18,000".
+
+        Each number carries its metric label so the reader knows which is which;
+        the causal "why" lives in the section, not here (At a Glance is numbers only).
+        """
         for sid in ids:
             s = by_id.get(sid)
             if s and s.stat_rows and s.stat_rows[0].cells:
-                return ", ".join(c.value_str for c in s.stat_rows[0].cells)
+                return _FIGURE_SEP.join(
+                    f"{c.metric_label} {c.value_str}" for c in s.stat_rows[0].cells
+                )
         return "n/a"
-
-    def why_for(*ids: str) -> str:
-        for sid in ids:
-            s = by_id.get(sid)
-            if s:
-                return s.lead.text
-        return ""
 
     mapping = {
         "Markets": ("us_equities",),
@@ -43,7 +47,7 @@ def build_glance_rows(ctx, sections) -> list[GlanceRow]:
         rows.append(GlanceRow(
             category=category,
             latest="" if is_live or category == "Bottom line" else latest_for(*ids),
-            why_brief=why_for(*ids) if ids else "",
+            why_brief="",  # At a Glance is numbers only; the "why" lives in each section.
             is_live=is_live,
         ))
     return rows

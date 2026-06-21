@@ -1,7 +1,7 @@
 from datetime import date
 from marketbrief.core.config import Config
 from marketbrief.core.context import BriefContext
-from marketbrief.core.enums import RunMode
+from marketbrief.core.enums import RunMode, Direction
 from marketbrief.core.models import Field
 from marketbrief.assemble.diff_line import build_diff_line
 from marketbrief.assemble.glance import build_glance_rows
@@ -34,3 +34,34 @@ def test_glance_has_live_row():
     rows = build_glance_rows(_ctx(), sections=[])
     live = [r for r in rows if r.is_live]
     assert len(live) == 1 and "morning" in live[0].category.lower()
+
+
+def _section_with_cells(sid, label, pairs):
+    from marketbrief.core.models import SectionVM, StatRow, FigureCell, WhyLine
+    cells = [FigureCell(metric_label=m, value_str=v, change_str="", direction=Direction.FLAT)
+             for m, v in pairs]
+    return SectionVM(id=sid, title=label, order=1, quiet=False,
+                     lead=WhyLine(text="Stocks rose on soft inflation.", hedged=False),
+                     stat_rows=[StatRow(label=label, cells=cells)])
+
+
+def test_glance_numbers_carry_their_metric_labels():
+    # Each figure must be labeled (S&P 5,000) so the reader knows which number is which.
+    sec = _section_with_cells("us_equities", "Indices",
+                              [("S&P", "5,000"), ("Nasdaq", "18,000")])
+    rows = build_glance_rows(_ctx(), sections=[sec])
+    markets = next(r for r in rows if r.category == "Markets")
+    assert "S&P 5,000" in markets.latest
+    assert "Nasdaq 18,000" in markets.latest
+    # bare, label-less numbers must not appear
+    assert markets.latest.count("5,000") == 1
+
+
+def test_glance_carries_no_explanation():
+    # At a Glance is numbers only; the "why" lives in each section, not here.
+    sec = _section_with_cells("us_equities", "Indices", [("S&P", "5,000")])
+    rows = build_glance_rows(_ctx(), sections=[sec])
+    markets = next(r for r in rows if r.category == "Markets")
+    assert markets.why_brief == ""
+    # the section's lead text must not leak into the glance row
+    assert "soft inflation" not in markets.latest
