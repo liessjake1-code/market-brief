@@ -4,7 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field as PField
 from marketbrief.core.config import Config
 from marketbrief.core.enums import RunMode
 from marketbrief.core.models import (
-    Field, Article, SourceResult, ComputedNumbers, Cause, NarratedWhy, SectionVM, HealthReport,
+    Field, Article, SourceResult, ComputedNumbers, Cause, NarratedWhy, SectionVM,
+    HealthReport, BriefView,
 )
 
 
@@ -23,6 +24,7 @@ class BriefContext(BaseModel):
     narration: dict[str, NarratedWhy] = PField(default_factory=dict)
     sections: list[SectionVM] = PField(default_factory=list)
     health: HealthReport = PField(default_factory=HealthReport)
+    brief_view: BriefView | None = None
 
     def with_updates(self, **kwargs) -> "BriefContext":
         return self.model_copy(update=kwargs)

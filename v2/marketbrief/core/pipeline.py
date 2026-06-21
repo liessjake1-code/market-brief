@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from marketbrief.core.context import BriefContext
 from marketbrief.core.models import SourceResult
 from marketbrief.core.enums import SourceHealth, Verdict
@@ -15,6 +16,11 @@ from marketbrief.narrate.chain import run_chain, TagOnlyCauseCheck
 from marketbrief.narrate.number_check import NumberCheck
 from marketbrief.narrate.entailment import EntailmentCheck
 from marketbrief.narrate.templated import templated_why
+from marketbrief.assemble.diff_line import build_diff_line
+from marketbrief.assemble.glance import build_glance_rows
+from marketbrief.assemble.topstory import order_sections
+from marketbrief.assemble.fence import build_live_snapshot
+from marketbrief.assemble.brief_view import build_brief_view
 
 
 def _fetch(ctx: BriefContext, sources: list) -> BriefContext:
@@ -78,7 +84,13 @@ def _assemble(ctx: BriefContext, sections: list) -> BriefContext:
         vm, err = run_isolated(f"section:{sec.id}", lambda sec=sec: sec.build(ctx), None)
         if vm is not None:
             built.append(vm)
-    return ctx.with_updates(sections=sorted(built, key=lambda v: v.order))
+    ordered = order_sections(ctx, built)
+    glance = build_glance_rows(ctx, ordered)
+    diff = build_diff_line(ctx)
+    # Live snapshot uses the run's wall-clock pull time; rows empty until futures wired.
+    live = build_live_snapshot(datetime.now(), rows=[])
+    view = build_brief_view(ctx, ordered, glance, diff, live)
+    return ctx.with_updates(sections=ordered, brief_view=view)
 
 
 def run_pipeline(ctx: BriefContext, *, sources: list | None = None,

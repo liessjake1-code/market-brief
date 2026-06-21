@@ -106,3 +106,17 @@ def test_mechanical_date_suppresses_promotion():
 
     assert [s.id for s in out] == _FALLBACK, "Order must be fallback order on mechanical date"
     assert all(not s.is_promoted for s in out), "No section should be promoted on a mechanical date"
+
+
+# ---------------------------------------------------------------------------
+# Group 4: default path (no path arg) resolves via module-level constant
+# ---------------------------------------------------------------------------
+
+def test_is_mechanical_date_no_path_arg_uses_real_yaml():
+    """is_mechanical_date with no path arg must resolve via _DEFAULT_MECH_PATH
+    (anchored to repo root) and correctly identify 2026-06-26 (Russell reconstitution)."""
+    result = is_mechanical_date(date(2026, 6, 26))
+    assert result is True, (
+        "is_mechanical_date(date(2026,6,26)) should return True using the default path "
+        "(_DEFAULT_MECH_PATH anchored to repo root, not cwd)"
+    )

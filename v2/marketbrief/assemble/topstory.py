@@ -17,6 +17,14 @@ if TYPE_CHECKING:
     from marketbrief.core.context import BriefContext
 
 # ---------------------------------------------------------------------------
+# Default path for mechanical_moves.yaml — anchored to repo root so the
+# module works regardless of cwd (spec §7.7 robustness requirement)
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]   # assemble -> marketbrief -> v2 -> repo root
+_DEFAULT_MECH_PATH = _REPO_ROOT / "data" / "mechanical_moves.yaml"
+
+# ---------------------------------------------------------------------------
 # Fixed fallback order (spec §4.2)
 # ---------------------------------------------------------------------------
 
@@ -56,14 +64,15 @@ def _as_date(value: object) -> date | None:
         return None
 
 
-def is_mechanical_date(run_date: date, path: str = "data/mechanical_moves.yaml") -> bool:
+def is_mechanical_date(run_date: date, path: str | Path | None = None) -> bool:
     """Return True if run_date is listed in the mechanical-moves calendar.
 
-    Reads the YAML at path. Gracefully returns False if the file is missing or
-    malformed. Handles the real schema where each top-level key (except "meta")
-    maps to a list of dicts each carrying a "date" field.
+    Reads the YAML at path (defaults to _DEFAULT_MECH_PATH, anchored to repo
+    root). Gracefully returns False if the file is missing or malformed.
+    Handles the real schema where each top-level key (except "meta") maps to
+    a list of dicts each carrying a "date" field.
     """
-    p = Path(path)
+    p = Path(path) if path is not None else _DEFAULT_MECH_PATH
     if not p.exists():
         return False
     try:

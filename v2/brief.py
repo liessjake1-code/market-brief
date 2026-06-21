@@ -9,9 +9,6 @@ from marketbrief.core.context import BriefContext
 from marketbrief.core.pipeline import run_pipeline
 from marketbrief.core.state import load_state, commit_state
 from marketbrief.render.html import render_brief, render_unavailable_notice
-from marketbrief.assemble.brief_view import build_brief_view
-from marketbrief.assemble.diff_line import build_diff_line
-from marketbrief.assemble.glance import build_glance_rows
 
 EXIT_OK = 0
 EXIT_HARD_FLOOR = 2
@@ -27,10 +24,7 @@ def build_brief(*, mode: RunMode, config_path, state_path, today: date | None = 
     if ctx.health.hard_floor_tripped:
         return EXIT_HARD_FLOOR, render_unavailable_notice()
 
-    diff_line = build_diff_line(ctx)
-    glance_rows = build_glance_rows(ctx, ctx.sections)
-    view = build_brief_view(ctx, ctx.sections, glance_rows, diff_line, live=None)
-    html = render_brief(view)
+    html = render_brief(ctx.brief_view)
     commit_state(state_path, {"run_date": today.isoformat()}, mode=mode)
     return EXIT_OK, html
 
