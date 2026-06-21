@@ -88,6 +88,34 @@ def test_run_send_no_send_mode_writes_preview_no_state(tmp_path: Path, monkeypat
     assert (tmp_path / "brief.preview.html").exists()
 
 
+def test_allow_repeat_env_override_beats_config(monkeypatch):
+    from marketbrief.core.config import Config
+    cfg = Config()  # committed default: allow_repeat_send False
+    assert cfg.monitoring.allow_repeat_send is False
+    monkeypatch.delenv("MARKET_BRIEF_ALLOW_REPEAT", raising=False)
+    assert brief._allow_repeat(cfg) is False  # no env, config false -> false
+    monkeypatch.setenv("MARKET_BRIEF_ALLOW_REPEAT", "1")
+    assert brief._allow_repeat(cfg) is True   # per-invocation env override wins
+    monkeypatch.setenv("MARKET_BRIEF_ALLOW_REPEAT", "0")
+    assert brief._allow_repeat(cfg) is False  # only "1" enables it
+
+
+def test_repeat_send_today_via_env_override(tmp_path: Path, monkeypatch):
+    # Already sent today; the env override (not committed config) lets a second
+    # manual send go through, while config stays false.
+    monkeypatch.setenv("MARKET_BRIEF_OFFLINE", "1")
+    monkeypatch.setenv("MARKET_BRIEF_ALLOW_REPEAT", "1")
+    state = tmp_path / "last_run.json"
+    state.write_text('{"last_sent_date": "2026-06-20", "run_date": "2026-06-20"}')
+    sent: list = []
+    code = brief.run_send(
+        mode=RunMode.SEND, config_path=_cfg(tmp_path), state_path=state,
+        today=date(2026, 6, 20), smtp_sender=lambda *a, **k: sent.append(a),
+        now=datetime(2026, 6, 20, 8, 30, tzinfo=CT),
+    )
+    assert code == 0 and len(sent) == 1  # second send today allowed by env override
+
+
 def test_hard_floor_returns_exit_2_and_writes_no_state(tmp_path: Path, monkeypatch):
     # With zero sources, all core fields are missing => hard floor trips.
     from marketbrief.core.pipeline import _fetch, _assess

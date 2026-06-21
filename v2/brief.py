@@ -21,6 +21,7 @@ send shows as a failed Actions run; the heartbeat is an independent dead-man che
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -80,6 +81,19 @@ def _last_sent_date(prev_state: dict) -> str | None:
     return (prev_state or {}).get("last_sent_date")
 
 
+def _allow_repeat(config: Config) -> bool:
+    """Whether to bypass the once-per-day idempotency guard.
+
+    A PER-INVOCATION env override (MARKET_BRIEF_ALLOW_REPEAT=1) for a one-off manual
+    second send, so the committed config stays false and the bypass can never get
+    stuck `true` across deploys (a stale committed `true` would let the two DST crons
+    + Actions retries double-send every day). Config remains a fallback for parity.
+    """
+    if os.environ.get("MARKET_BRIEF_ALLOW_REPEAT") == "1":
+        return True
+    return config.monitoring.allow_repeat_send
+
+
 def _state_payload(prev_state: dict, today: date) -> dict:
     """The state to write on a real send: prior keys + today's stamps.
 
@@ -134,7 +148,7 @@ def run_send(
         send_window_end=config.schedule.send_window_end,
         last_sent_date=_last_sent_date(ctx.prev_state),
         now=now,
-        allow_repeat_send=config.monitoring.allow_repeat_send,
+        allow_repeat_send=_allow_repeat(config),
     )
     print(f"  schedule: {decision.reason}")
 

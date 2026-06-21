@@ -22,6 +22,10 @@ on:
         description: "Build only (--no-send): no email, no state write"
         type: boolean
         default: false
+      allow_repeat:
+        description: "Bypass the once-per-day guard for THIS manual run (second send today). Never affects the cron."
+        type: boolean
+        default: false
 
 permissions:
   contents: write              # state commit-back pushes last_run.json
@@ -54,3 +58,7 @@ jobs:
           STATE_COMMIT_PAT:   ${{ secrets.STATE_COMMIT_PAT }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Per-invocation idempotency bypass: only ever 1 on a manual dispatch that
+          # opted in; "" on every scheduled cron run, so a manual second send can
+          # never carry over to the cron (boolean input, no injection surface).
+          MARKET_BRIEF_ALLOW_REPEAT: ${{ (github.event_name == 'workflow_dispatch' && inputs.allow_repeat) && '1' || '' }}
