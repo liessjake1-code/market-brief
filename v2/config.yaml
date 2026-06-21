@@ -59,7 +59,8 @@ schedule:
 monitoring:
   # MUST stay false for go-live: it bypasses the once-per-day idempotency guard
   # (test-iteration only). With both DST crons + retries, true would double-send.
-  allow_repeat_send: false
+  # TEMPORARY true for a manual second send today; flip back to false immediately.
+  allow_repeat_send: true
   # Heartbeat dead-man's switch (spec §7.6): if nothing sent by this Central
   # cutoff on a trading day, alert on heartbeat_channel.
   heartbeat_cutoff: "10:00"
