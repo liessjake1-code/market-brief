@@ -1,0 +1,138 @@
+{#
+   template.html.j2 — "The Tape" v2 (spec §6.5, frontend-design refresh)
+
+   Email-safe: single-column <table> layout, fully inline styles only.
+   No <style> blocks, no external CSS, no flexbox or grid.
+
+   Palette (§6.5 exact hexes only):
+     ink navy   #13202E   body text, headings
+     paper      #FBFAF7   page background
+     card white #FFFFFF   content card
+     hairline   #E4E0D7   row dividers, borders
+     gold rule  #B0892F   section top borders
+     green      #197A4B   up direction ONLY
+     red        #BC3B2E   down direction ONLY, banner text
+     grey       #6B7785   muted labels, captions
+
+   Fonts:
+     Masthead/headings: Georgia, serif
+     All figure values/changes: Consolas, "SFMono-Regular", monospace
+     Body prose: Arial, Helvetica, sans-serif
+
+   No em dashes. No emojis. Logic-free beyond loops and simple conditionals.
+   All business logic lives in Python; this template only presents.
+#}
+
+{%- macro figure_color(direction) -%}
+  {%- if direction == 'up' or direction == Direction.UP -%}#197A4B{%- elif direction == 'down' or direction == Direction.DOWN -%}#BC3B2E{%- else -%}#13202E{%- endif -%}
+{%- endmacro -%}
+
+<html>
+  <body style="margin:0;padding:0;background:#FBFAF7;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBFAF7;">
+      <tr><td align="center" style="padding:20px 10px 28px 10px;">
+
+        {# Outer card: white on paper, subtle border #}
+        <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:620px;max-width:620px;background:#FFFFFF;border:1px solid #E4E0D7;">
+
+          {# ================================================================
+             MASTHEAD
+          ================================================================ #}
+          <tr><td style="padding:26px 32px 20px 32px;border-bottom:2px solid #13202E;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="vertical-align:bottom;">
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:5px;">Daily Market Brief</div>
+                <div style="font-family:Georgia,serif;font-size:32px;color:#13202E;font-weight:700;letter-spacing:-0.5px;line-height:1;">The Tape</div>
+              </td>
+              <td align="right" style="vertical-align:bottom;">
+                <div style="font-family:Consolas,'SFMono-Regular',monospace;font-size:11px;color:#6B7785;line-height:1.7;text-align:right;">{{ view.date_label if view.date_label is defined else "" }}</div>
+              </td>
+            </tr></table>
+          </td></tr>
+
+          {# ================================================================
+             DEGRADED BANNER (§6.5: red text, only when view.degraded or banner_text)
+          ================================================================ #}
+          {% if view.banner_text %}<tr><td style="background:#FBFAF7;color:#BC3B2E;padding:8px 32px;font-family:Arial,Helvetica,sans-serif;font-size:12px;border-bottom:1px solid #E4E0D7;">{{ view.banner_text }}</td></tr>{% endif %}
+
+          {# ================================================================
+             DIFF LINE (highest-signal element, spec §4.1)
+          ================================================================ #}
+          <tr><td style="padding:20px 32px 0 32px;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:6px;">What changed since yesterday</div>
+            <div style="font-family:Georgia,serif;font-size:15px;color:#13202E;font-weight:bold;padding:8px 12px;border-left:3px solid #B0892F;line-height:1.5;">{{ view.diff_line }}</div>
+          </td></tr>
+
+          {# ================================================================
+             AT A GLANCE CARD
+          ================================================================ #}
+          <tr><td style="padding:20px 32px 0 32px;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:1px solid #13202E;">At a Glance</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              {% for row in view.glance_rows %}
+              <tr style="border-bottom:1px solid #E4E0D7;">
+                <td style="padding:8px 12px 8px 0;vertical-align:top;width:110px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#13202E;font-weight:700;white-space:nowrap;">{{ row.category }}</td>
+                <td style="padding:8px 12px;vertical-align:top;font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;color:#13202E;white-space:nowrap;">{{ row.latest }}</td>
+                <td style="padding:8px 0;vertical-align:top;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6B7785;">{{ row.why_brief }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </td></tr>
+
+          {# ================================================================
+             THE DAY IN FULL (ordered sections)
+          ================================================================ #}
+          <tr><td style="padding:24px 32px 0 32px;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:6px;border-bottom:1px solid #13202E;">The Day in Full</div>
+          </td></tr>
+
+          {% for s in view.sections %}
+          <tr><td style="border-top:2px solid #B0892F;padding:16px 32px 0 32px;">
+            <h2 style="font-family:Georgia,serif;color:#13202E;font-size:17px;font-weight:700;margin:0 0 4px 0;line-height:1.25;">{{ s.title }}{% if s.is_promoted %}&nbsp;<span style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;vertical-align:middle;">(Top Story)</span>{% endif %}</h2>
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#13202E;margin:0 0 10px 0;line-height:1.55;">{{ s.lead.text }}</p>
+            {% for row in s.stat_rows %}
+            <p style="font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;color:#13202E;margin:0 0 4px 0;line-height:1.6;">
+              {% for c in row.cells %}{% if c.source_url %}<a href="{{ c.source_url }}" style="color:#13202E;text-decoration:none;">{% endif %}<span style="font-family:Consolas,'SFMono-Regular',monospace;">{{ c.metric_label }}</span>&nbsp;<strong>{{ c.value_str }}</strong>&nbsp;<span style="color:{% if c.direction.value == 'up' or c.direction == 'up' %}#197A4B{% elif c.direction.value == 'down' or c.direction == 'down' %}#BC3B2E{% else %}#13202E{% endif %};">{{ c.change_str }}</span>{% if c.stale %}&nbsp;<span style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6B7785;">(stale)</span>{% endif %}{% if c.source_url %}</a>{% endif %}{% if not loop.last %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}
+            </p>
+            {% endfor %}
+            {% for wl in s.why_lines %}
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B7785;margin:4px 0 0 0;line-height:1.5;font-style:italic;">{{ wl.text }}</p>
+            {% endfor %}
+          </td></tr>
+          {% endfor %}
+
+          {# ================================================================
+             FENCED LIVE BLOCK (pre-market snapshot, visually separated)
+          ================================================================ #}
+          {% if view.live %}
+          <tr><td style="padding:20px 32px 0 32px;">
+            <div style="background:#FBFAF7;border:1px solid #E4E0D7;border-left:4px solid #B0892F;padding:14px 16px;">
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Live Snapshot (not a settled fact)</div>
+              <strong style="font-family:Georgia,serif;font-size:14px;color:#6B7785;display:block;margin-bottom:8px;">{{ view.live.as_of_label }}</strong>
+              {% for c in view.live.rows %}<span style="font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;color:#13202E;white-space:nowrap;">{{ c.metric_label }}&nbsp;<strong>{{ c.value_str }}</strong></span>&nbsp;&nbsp;{% endfor %}
+            </div>
+          </td></tr>
+          {% endif %}
+
+          {# ================================================================
+             WHAT TO WATCH (forward-looking events)
+          ================================================================ #}
+          <tr><td style="padding:22px 32px 0 32px;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:1px solid #13202E;">What to Watch</div>
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B7785;margin:10px 0 0 0;">No scheduled events flagged for today.</p>
+          </td></tr>
+
+          {# ================================================================
+             FOOTER
+          ================================================================ #}
+          <tr><td style="padding:22px 32px 24px 32px;">
+            <div style="border-top:1px solid #E4E0D7;padding-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6B7785;line-height:1.7;">
+              Numbers are Python-computed from live sources. Every causal claim traces to a supplied article or is hedged. "No clear catalyst" is a correct output.
+            </div>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

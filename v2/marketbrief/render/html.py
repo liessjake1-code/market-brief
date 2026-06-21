@@ -1,18 +1,15 @@
 from __future__ import annotations
+from pathlib import Path
 from jinja2 import Template
-from marketbrief.core.models import SectionVM
+from marketbrief.core.models import BriefView
 
-_TEMPLATE = Template(
-    """<html><body>
-{% if degraded %}<p class="banner">Some sources returned limited data or could not be refreshed this morning.</p>{% endif %}
-{% for s in sections %}<section><h2>{{ s.title }}</h2><p>{{ s.body }}</p></section>
-{% endfor %}</body></html>"""
-)
+_TEMPLATE_PATH = Path(__file__).parent / "template.html.j2"
 
 
-def render_html(sections: list[SectionVM], *, degraded: bool) -> str:
-    ordered = sorted(sections, key=lambda v: v.order)
-    return _TEMPLATE.render(sections=ordered, degraded=degraded)
+def render_brief(view: BriefView) -> str:
+    """Render the full brief HTML from a BriefView. Logic-free: loops + conditionals only."""
+    template = Template(_TEMPLATE_PATH.read_text())
+    return template.render(view=view)
 
 
 def render_unavailable_notice() -> str:
