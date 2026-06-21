@@ -7,6 +7,8 @@ is unavailable. No chart ever fabricates data (spec §1, §6).
 """
 from __future__ import annotations
 
+import logging
+
 from marketbrief.core.enums import ChartKind
 from marketbrief.core.models import ChartRef
 from marketbrief.render import charts as C
@@ -16,7 +18,8 @@ def _safe(fn):
     """Run fn(); return None on any exception so charts never block the brief."""
     try:
         return fn()
-    except Exception:
+    except Exception as exc:
+        logging.warning("chart build skipped: %s", exc)
         return None  # a chart never blocks the brief (spec §7.5)
 
 
