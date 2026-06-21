@@ -56,7 +56,7 @@ def build_charts(ctx) -> tuple[dict[str, bytes], dict[str, list[ChartRef]]]:
     # Wire point is here; skipped cleanly until history sub-project supplies series.
     if cfg.rates:
         add(
-            "rates",
+            "rates_and_dollar",
             _safe(lambda: C.ten_year_trend(ten_year_history=[])),
             ChartKind.LINE,
         )

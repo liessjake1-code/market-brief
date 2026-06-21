@@ -65,7 +65,7 @@ def favicon_url(domain: str | None) -> str | None:
     """
     if not domain:
         return None
-    return GOOGLE_FAVICON.format(domain=quote(domain, safe=""))
+    return safe_url(GOOGLE_FAVICON.format(domain=quote(domain, safe="")))
 
 
 def _is_yield_metric(metric: str) -> bool:
