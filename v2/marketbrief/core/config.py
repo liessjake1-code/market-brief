@@ -15,6 +15,25 @@ class NarrateConfig(BaseModel):
     max_tokens: int = 1500
 
 
+class ScheduleConfig(BaseModel):
+    # Local-Central send window (spec §8.3). The cron window guard fires inside
+    # [send_time-5min, send_window_end] once per day. The two UTC cron lines in
+    # daily-brief.yml + this window cover DST.
+    send_time: str = "08:30"
+    send_window_end: str = "09:15"
+
+
+class MonitoringConfig(BaseModel):
+    # allow_repeat_send bypasses ONLY the once-per-day idempotency guard, for
+    # iterating on test sends. MUST be False for go-live so retries/both DST crons
+    # cannot double-send.
+    allow_repeat_send: bool = False
+    # Heartbeat dead-man's switch (spec §7.6): if nothing sent by this Central
+    # cutoff on a trading day, alert on `heartbeat_channel`.
+    heartbeat_cutoff: str = "10:00"
+    heartbeat_channel: str = "telegram"
+
+
 class ChartsConfig(BaseModel):
     equities: bool = True       # default on (spec §6)
     rates: bool = True          # default on
@@ -35,6 +54,8 @@ class Config(BaseModel):
     movers_universe: list[str] = Field(default_factory=list)
     narrate: NarrateConfig = Field(default_factory=NarrateConfig)
     charts: ChartsConfig = Field(default_factory=ChartsConfig)
+    schedule: ScheduleConfig = Field(default_factory=ScheduleConfig)
+    monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
 
 def load_config(path: str | Path) -> Config:

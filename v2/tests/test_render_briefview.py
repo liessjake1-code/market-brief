@@ -114,7 +114,11 @@ def test_dark_palette_present_in_output():
     assert "#FBFAF7" not in html and "#B0892F" not in html
 
 
-def test_mime_has_cid_image_part():
+def test_mime_has_cid_image_part(monkeypatch):
+    # The mime adapter delegates to render/send.build_message, which requires the
+    # From/To envelope secrets (as the real send path does).
+    monkeypatch.setenv("EMAIL_FROM", "from@example.com")
+    monkeypatch.setenv("EMAIL_TO", "to@example.com")
     msg = build_message("<html><body><img src='cid:chart_index'></body></html>",
                         {"chart_index": b"\x89PNG\r\n\x1a\n"})
     assert isinstance(msg, EmailMessage)

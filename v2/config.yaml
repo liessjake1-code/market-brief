@@ -50,3 +50,17 @@ narrate:
   model: "claude-sonnet-4-6"
   entailment_model: "claude-haiku-4-5"
   max_tokens: 1500
+schedule:
+  # Local-Central send window (spec §8.3). The cron window guard fires inside
+  # [send_time - 5min, send_window_end] once per day. The two UTC cron lines in
+  # daily-brief.yml plus this window cover DST.
+  send_time: "08:30"
+  send_window_end: "09:15"
+monitoring:
+  # MUST stay false for go-live: it bypasses the once-per-day idempotency guard
+  # (test-iteration only). With both DST crons + retries, true would double-send.
+  allow_repeat_send: false
+  # Heartbeat dead-man's switch (spec §7.6): if nothing sent by this Central
+  # cutoff on a trading day, alert on heartbeat_channel.
+  heartbeat_cutoff: "10:00"
+  heartbeat_channel: "telegram"
