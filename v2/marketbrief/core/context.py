@@ -5,7 +5,7 @@ from marketbrief.core.config import Config
 from marketbrief.core.enums import RunMode
 from marketbrief.core.models import (
     Field, Article, SourceResult, ComputedNumbers, Cause, NarratedWhy, SectionVM,
-    HealthReport, BriefView,
+    HealthReport, BriefView, MoverBoard,
 )
 
 
@@ -20,6 +20,7 @@ class BriefContext(BaseModel):
     resolved_fields: dict[str, Field] = PField(default_factory=dict)
     articles: list[Article] = PField(default_factory=list)
     numbers: ComputedNumbers = PField(default_factory=ComputedNumbers)
+    mover_board: MoverBoard | None = None
     causes: list[Cause] = PField(default_factory=list)
     narration: dict[str, NarratedWhy] = PField(default_factory=dict)
     sections: list[SectionVM] = PField(default_factory=list)

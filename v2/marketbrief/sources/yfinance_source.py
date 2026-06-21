@@ -32,6 +32,15 @@ def _real_download(symbol: str, days: int) -> list[float]:
         return []
 
 
+def download_closes(symbol: str, days: int) -> list[float]:
+    """Public daily-close downloader: closes oldest->newest, [] on any failure.
+
+    Stable entry point shared by YFinanceSource and the Movers universe fetch, so
+    callers do not reach into the private `_real_download` implementation.
+    """
+    return _real_download(symbol, days)
+
+
 def _select_close(df, symbol: str):
     cols = df.columns
     if hasattr(cols, "nlevels") and cols.nlevels > 1:

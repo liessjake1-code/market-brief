@@ -9,6 +9,8 @@ from marketbrief.core.health import assess
 from marketbrief.fetch.resolver import resolve_fields
 from marketbrief.sources.rss_source import RssSource
 from marketbrief.compute.derive import derive_numbers
+from marketbrief.compute.movers import compute_movers
+from marketbrief.fetch.universe import fetch_universe_closes
 from marketbrief.match.scorer import match_sections
 from marketbrief.narrate.narrator import narrate
 from marketbrief.narrate.client import build_client
@@ -54,8 +56,17 @@ def _assess(ctx: BriefContext) -> BriefContext:
     return ctx.with_updates(health=report)
 
 
-def _compute(ctx: BriefContext) -> BriefContext:
-    return ctx.with_updates(numbers=derive_numbers(ctx.resolved_fields, ctx.config))
+def _compute(ctx: BriefContext, universe_downloader=None) -> BriefContext:
+    numbers = derive_numbers(ctx.resolved_fields, ctx.config)
+    # Movers board: fetch universe closes (isolated, offline-safe) and rank in
+    # Python. Empty/thin/offline -> a board with no rows, so Movers degrades quiet.
+    closes, _err = run_isolated(
+        "compute:movers_universe",
+        lambda: fetch_universe_closes(ctx.config.movers_universe, downloader=universe_downloader),
+        {},
+    )
+    board = compute_movers(closes or {})
+    return ctx.with_updates(numbers=numbers, mover_board=board)
 
 
 def _narrate(ctx: BriefContext, client) -> BriefContext:
@@ -102,7 +113,7 @@ def _assemble(ctx: BriefContext, sections: list) -> BriefContext:
 
 def run_pipeline(ctx: BriefContext, *, sources: list | None = None,
                  sections: list | None = None, news_source=None,
-                 narration_client=None) -> BriefContext:
+                 narration_client=None, universe_downloader=None) -> BriefContext:
     sources = discover_sources() if sources is None else sources
     sections = discover_sections() if sections is None else sections
     news_source = RssSource() if news_source is None else news_source
@@ -111,7 +122,7 @@ def run_pipeline(ctx: BriefContext, *, sources: list | None = None,
     ctx = _resolve(ctx)
     ctx = _fetch_news(ctx, news_source)
     ctx = _assess(ctx)
-    ctx = _compute(ctx)
+    ctx = _compute(ctx, universe_downloader)
     ctx = _narrate(ctx, client)
     ctx = _assemble(ctx, sections)
     return ctx

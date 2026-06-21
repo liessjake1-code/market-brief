@@ -29,6 +29,10 @@ class ChartsConfig(BaseModel):
 class Config(BaseModel):
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     watchlist: list[str] = Field(default_factory=list)
+    # Curated liquid universe the Movers board screens for winners/losers
+    # (spec §7 best-effort rule). Empty -> Movers stays quiet. Do NOT screen a
+    # full index live; keep this a bounded, hand-picked list.
+    movers_universe: list[str] = Field(default_factory=list)
     narrate: NarrateConfig = Field(default_factory=NarrateConfig)
     charts: ChartsConfig = Field(default_factory=ChartsConfig)
 

@@ -2,6 +2,50 @@ resilience:
   degraded_stale_threshold: 2
   hard_floor_missing_threshold: 4
 watchlist: []
+# Curated liquid universe for the Movers board (top-3 winners/losers by day/week/
+# month). Hand-picked large-cap, liquid names so daily-close moves are meaningful
+# without a separate volume screen. Empty list -> Movers stays quiet (spec §7).
+movers_universe:
+  - AAPL
+  - MSFT
+  - NVDA
+  - AMZN
+  - GOOGL
+  - META
+  - AVGO
+  - TSLA
+  - AMD
+  - NFLX
+  - JPM
+  - BAC
+  - WFC
+  - GS
+  - V
+  - MA
+  - XOM
+  - CVX
+  - COP
+  - UNH
+  - JNJ
+  - LLY
+  - PFE
+  - MRK
+  - WMT
+  - COST
+  - HD
+  - KO
+  - PEP
+  - MCD
+  - DIS
+  - BA
+  - CAT
+  - GE
+  - INTC
+  - MU
+  - QCOM
+  - ORCL
+  - CRM
+  - ADBE
 narrate:
   model: "claude-sonnet-4-6"
   entailment_model: "claude-haiku-4-5"
