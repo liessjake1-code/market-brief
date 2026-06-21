@@ -1,0 +1,192 @@
+{#
+   template.html.j2 — "The Tape" v2 (spec §6.5, dark-terminal refresh)
+
+   Email-safe: single-column <table> layout, fully inline styles only.
+   No <style> blocks, no external CSS, no flexbox or grid.
+
+   Palette (§6.5 dark-terminal, exact hexes only):
+     bg         #0B0E14   page background
+     panel      #11151F   content card
+     panel2     #0E121B   inset panels (figure rows, live fence, diff)
+     text       #E6E3DA   primary off-white text, figure values
+     prose      #C9C6BD   body prose (slightly dimmer than text)
+     muted      #7A828F   muted labels, captions, why lines
+     hairline   #232A36   row dividers, borders
+     amber      #E8A33D   single brand accent (rules, headers, top-story tag)
+     green      #4FB477   up direction ONLY
+     red        #E5594F   down direction ONLY, banner text
+     bg-on-amber#0B0E14   text drawn on an amber chip
+
+   Fonts (web-safe stacks; no web-fonts in email):
+     Masthead/headings/figures: Consolas, "SFMono-Regular", Menlo, monospace
+     Body prose:                "Helvetica Neue", Arial, sans-serif
+
+   No em dashes. No emojis. Logic-free beyond loops and simple conditionals.
+   All business logic lives in Python; this template only presents.
+#}
+
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#0B0E14;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B0E14;">
+      <tr><td align="center" style="padding:24px 10px 36px 10px;">
+
+        {# Outer card: dark panel on near-black, hairline border #}
+        <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:620px;max-width:620px;background:#11151F;border:1px solid #232A36;">
+
+          {# ================================================================
+             MASTHEAD
+          ================================================================ #}
+          <tr><td style="padding:22px 24px 18px 24px;border-bottom:2px solid #E8A33D;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="vertical-align:bottom;">
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#7A828F;font-weight:700;text-transform:uppercase;letter-spacing:3px;padding-bottom:5px;">Daily Market Brief</div>
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:30px;color:#E6E3DA;font-weight:700;letter-spacing:1px;line-height:1;">THE&nbsp;TAPE</div>
+              </td>
+              <td align="right" style="vertical-align:bottom;">
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:11px;color:#E8A33D;text-align:right;">{% if view.date_label %}// {{ view.date_label }}{% endif %}</div>
+              </td>
+            </tr></table>
+          </td></tr>
+
+          {# ================================================================
+             DEGRADED BANNER (§6.5: red text, only when banner_text)
+          ================================================================ #}
+          {% if view.banner_text %}<tr><td style="background:#0E121B;color:#E5594F;padding:8px 24px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;border-bottom:1px solid #232A36;">{{ view.banner_text }}</td></tr>{% endif %}
+
+          {# ================================================================
+             DIFF LINE (highest-signal element, spec §4.1)
+          ================================================================ #}
+          <tr><td style="padding:18px 24px 0 24px;">
+            <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#7A828F;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:7px;">What changed since yesterday</div>
+            <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:15px;color:#E6E3DA;font-weight:700;padding:10px 14px;background:#0E121B;border-left:3px solid #E8A33D;line-height:1.5;">{{ view.diff_line }}</div>
+          </td></tr>
+
+          {# ================================================================
+             AT A GLANCE
+          ================================================================ #}
+          <tr><td style="padding:22px 24px 0 24px;">
+            <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#E8A33D;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:1px solid #E8A33D;">At a Glance</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              {% for row in view.glance_rows %}
+              <tr>
+                <td style="padding:7px 16px 7px 0;vertical-align:top;width:128px;border-bottom:1px solid #232A36;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#E6E3DA;font-weight:700;white-space:nowrap;">{{ row.category }}</td>
+                <td style="padding:7px 0;vertical-align:top;border-bottom:1px solid #232A36;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:{% if row.is_live %}#E8A33D{% else %}#E6E3DA{% endif %};{% if row.is_live %}font-weight:700;{% endif %}">{{ row.latest }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </td></tr>
+
+          {# ================================================================
+             THE DAY IN FULL (ordered sections)
+          ================================================================ #}
+          <tr><td style="padding:24px 24px 0 24px;">
+            <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#E8A33D;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:4px;border-bottom:1px solid #E8A33D;">The Day in Full</div>
+          </td></tr>
+
+          {% for s in view.sections %}
+          <tr><td style="padding:18px 24px 14px 24px;border-top:1px solid #232A36;">
+            <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:13px;font-weight:700;color:#E6E3DA;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px 0;border-left:3px solid #E8A33D;padding-left:10px;">{{ s.title }}{% if s.is_promoted %}&nbsp;<span style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#0B0E14;background:#E8A33D;padding:2px 6px;letter-spacing:1px;font-weight:700;">TOP STORY</span>{% endif %}</div>
+            <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#C9C6BD;margin:0 0 10px 0;line-height:1.55;">{{ s.lead.text }}</p>
+
+            {% for row in s.stat_rows %}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 6px 0;"><tr><td style="background:#0E121B;border:1px solid #232A36;padding:10px 12px;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:#E6E3DA;line-height:1.7;">
+              {% for c in row.cells %}{% if c.source_url %}<a href="{{ c.source_url }}" style="color:#E6E3DA;text-decoration:none;">{% endif %}<span style="color:#7A828F;">{{ c.metric_label }}</span>&nbsp;<strong style="color:#E6E3DA;">{{ c.value_str }}</strong>{% if c.change_str %}&nbsp;<span style="color:{% if c.direction.value == 'up' or c.direction == 'up' %}#4FB477{% elif c.direction.value == 'down' or c.direction == 'down' %}#E5594F{% else %}#E6E3DA{% endif %};">{{ c.change_str }}</span>{% endif %}{% if c.stale %}&nbsp;<span style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#7A828F;">(stale)</span>{% endif %}{% if c.source_url %}</a>{% endif %}{% if not loop.last %}<span style="color:#232A36;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>{% endif %}{% endfor %}
+            </td></tr></table>
+            {% endfor %}
+
+            {% for wl in s.why_lines %}
+            <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#7A828F;margin:4px 0 0 0;line-height:1.5;font-style:italic;">{{ wl.text }}</p>
+            {% endfor %}
+
+            {% if s.charts %}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 2px 0;">
+              {% for chart in s.charts %}
+              <tr><td style="background:#0B0E14;border:1px solid #232A36;padding:4px;">
+                <img src="cid:{{ chart.cid }}" alt="{{ chart.alt }}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;" />
+              </td></tr>
+              {% endfor %}
+            </table>
+            {% endif %}
+
+            {# Movers board: top winners/losers by day / week / month. Renders a
+               period block only when it has rows, so an empty board (deferred
+               universe screen) shows nothing rather than fabricated names. #}
+            {% if s.mover_board and s.mover_board.has_rows %}
+            {% for p in s.mover_board.periods %}{% if p.winners or p.losers %}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px 0;"><tr>
+              <td style="vertical-align:top;width:50%;padding-right:10px;">
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#4FB477;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">{{ p.label }} Winners</div>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  {% for m in p.winners %}
+                  <tr>
+                    <td style="padding:5px 10px 5px 0;border-bottom:1px solid #232A36;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;font-weight:700;color:#E8A33D;white-space:nowrap;">{% if m.source_url %}<a href="{{ m.source_url }}" style="color:#E8A33D;text-decoration:none;">{{ m.ticker }}</a>{% else %}{{ m.ticker }}{% endif %}</td>
+                    <td align="right" style="padding:5px 0;border-bottom:1px solid #232A36;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:#4FB477;white-space:nowrap;">{{ m.value_str }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </td>
+              <td style="vertical-align:top;width:50%;padding-left:10px;">
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#E5594F;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">{{ p.label }} Losers</div>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  {% for m in p.losers %}
+                  <tr>
+                    <td style="padding:5px 10px 5px 0;border-bottom:1px solid #232A36;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;font-weight:700;color:#E8A33D;white-space:nowrap;">{% if m.source_url %}<a href="{{ m.source_url }}" style="color:#E8A33D;text-decoration:none;">{{ m.ticker }}</a>{% else %}{{ m.ticker }}{% endif %}</td>
+                    <td align="right" style="padding:5px 0;border-bottom:1px solid #232A36;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:#E5594F;white-space:nowrap;">{{ m.value_str }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </td>
+            </tr></table>
+            {% endif %}{% endfor %}
+            {% endif %}
+
+            {# Watchlist / single-stock mover rows (flat list, e.g. tracked names). #}
+            {% if s.movers | length > 0 %}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-collapse:collapse;">
+              {% for m in s.movers %}
+              <tr>
+                <td style="padding:7px 10px 7px 0;border-bottom:1px solid #232A36;vertical-align:middle;width:28px;">
+                  {% if m.favicon_url %}<img src="{{ m.favicon_url }}" width="14" height="14" alt="" style="display:block;border:0;vertical-align:middle;">{% endif %}
+                </td>
+                <td style="padding:7px 10px 7px 0;border-bottom:1px solid #232A36;vertical-align:middle;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;font-weight:700;color:#E8A33D;white-space:nowrap;">
+                  {% if m.source_url %}<a href="{{ m.source_url }}" style="color:#E8A33D;text-decoration:none;">{{ m.ticker }}</a>{% else %}{{ m.ticker }}{% endif %}
+                </td>
+                <td style="padding:7px 10px 7px 0;border-bottom:1px solid #232A36;vertical-align:middle;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:{% if m.direction.value == 'up' or m.direction == 'up' %}#4FB477{% elif m.direction.value == 'down' or m.direction == 'down' %}#E5594F{% else %}#E6E3DA{% endif %};white-space:nowrap;">{{ m.value_str }}</td>
+                <td style="padding:7px 0;border-bottom:1px solid #232A36;vertical-align:middle;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#7A828F;">{{ m.why }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+            {% endif %}
+          </td></tr>
+          {% endfor %}
+
+          {# ================================================================
+             FENCED LIVE BLOCK (pre-market snapshot, visually separated)
+          ================================================================ #}
+          {% if view.live %}
+          <tr><td style="padding:18px 24px 4px 24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0E121B;border:1px solid #232A36;border-left:4px solid #E8A33D;">
+              <tr><td style="padding:14px 16px;">
+                <div style="font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:9px;color:#E8A33D;font-weight:700;letter-spacing:2px;margin-bottom:7px;">&#9679;&nbsp;LIVE // PRE-MARKET (NOT A SETTLED FACT)</div>
+                <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#E6E3DA;font-weight:700;margin-bottom:8px;">{{ view.live.as_of_label }}</div>
+                {% for c in view.live.rows %}<span style="display:inline-block;margin:0 18px 4px 0;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:12px;color:#7A828F;white-space:nowrap;">{{ c.metric_label }}&nbsp;<strong style="color:#E6E3DA;">{{ c.value_str }}</strong></span>{% endfor %}
+              </td></tr>
+            </table>
+          </td></tr>
+          {% endif %}
+
+          {# ================================================================
+             FOOTER
+          ================================================================ #}
+          <tr><td style="padding:22px 24px 26px 24px;">
+            <div style="border-top:1px solid #232A36;padding-top:12px;font-family:Consolas,'SFMono-Regular',Menlo,monospace;font-size:10px;color:#7A828F;line-height:1.7;">
+              Numbers are Python-computed from live sources. Every causal claim traces to a supplied article or is hedged. "No clear catalyst" is a correct output.
+            </div>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

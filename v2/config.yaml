@@ -1,0 +1,68 @@
+resilience:
+  degraded_stale_threshold: 2
+  hard_floor_missing_threshold: 4
+watchlist: []
+# Curated liquid universe for the Movers board (top-3 winners/losers by day/week/
+# month). Hand-picked large-cap, liquid names so daily-close moves are meaningful
+# without a separate volume screen. Empty list -> Movers stays quiet (spec §7).
+movers_universe:
+  - AAPL
+  - MSFT
+  - NVDA
+  - AMZN
+  - GOOGL
+  - META
+  - AVGO
+  - TSLA
+  - AMD
+  - NFLX
+  - JPM
+  - BAC
+  - WFC
+  - GS
+  - V
+  - MA
+  - XOM
+  - CVX
+  - COP
+  - UNH
+  - JNJ
+  - LLY
+  - PFE
+  - MRK
+  - WMT
+  - COST
+  - HD
+  - KO
+  - PEP
+  - MCD
+  - DIS
+  - BA
+  - CAT
+  - GE
+  - INTC
+  - MU
+  - QCOM
+  - ORCL
+  - CRM
+  - ADBE
+narrate:
+  model: "claude-sonnet-4-6"
+  entailment_model: "claude-haiku-4-5"
+  max_tokens: 1500
+schedule:
+  # Local-Central send window (spec §8.3). The cron window guard fires inside
+  # [send_time - 5min, send_window_end] once per day. The two UTC cron lines in
+  # daily-brief.yml plus this window cover DST.
+  send_time: "08:30"
+  send_window_end: "09:15"
+monitoring:
+  # MUST stay false for go-live: it bypasses the once-per-day idempotency guard.
+  # With both DST crons + retries, true would double-send every day. For a one-off
+  # manual second send, do NOT set this true; use the per-invocation env override
+  # MARKET_BRIEF_ALLOW_REPEAT=1 instead (it cannot get stuck true in committed config).
+  allow_repeat_send: false
+  # Heartbeat dead-man's switch (spec §7.6): if nothing sent by this Central
+  # cutoff on a trading day, alert on heartbeat_channel.
+  heartbeat_cutoff: "10:00"
+  heartbeat_channel: "telegram"
