@@ -11,9 +11,22 @@ one place (DRY) and is unit-testable without rendering.
 
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from marketbrief.core.symbols import SYMBOLS_BY_METRIC
+
+_SAFE_SCHEMES = frozenset({"http", "https"})
+
+
+def safe_url(url: str | None) -> str | None:
+    """Return url only when its scheme is http or https; otherwise return None.
+
+    Guards against javascript:/data: URIs at the render boundary (defense-in-depth).
+    Valid http/https URLs pass through unchanged.
+    """
+    if url is None:
+        return None
+    return url if urlsplit(url).scheme in _SAFE_SCHEMES else None
 
 YAHOO_QUOTE = "https://finance.yahoo.com/quote/{symbol}"
 FRED_SERIES = "https://fred.stlouisfed.org/series/{series}"
@@ -31,17 +44,17 @@ def source_url(metric: str) -> str | None:
     if sym is None:
         return None
     if sym.fred and _is_yield_metric(metric):
-        return FRED_SERIES.format(series=sym.fred)
+        return safe_url(FRED_SERIES.format(series=sym.fred))
     if sym.yf is None and sym.fred:
-        return FRED_SERIES.format(series=sym.fred)
+        return safe_url(FRED_SERIES.format(series=sym.fred))
     if sym.yf is None:
         return None
-    return YAHOO_QUOTE.format(symbol=quote(sym.yf, safe=""))
+    return safe_url(YAHOO_QUOTE.format(symbol=quote(sym.yf, safe="")))
 
 
-def yahoo_ticker_url(ticker: str) -> str:
+def yahoo_ticker_url(ticker: str) -> str | None:
     """Yahoo quote page for a single stock ticker (Movers / Watchlist rows)."""
-    return YAHOO_QUOTE.format(symbol=quote(ticker, safe=""))
+    return safe_url(YAHOO_QUOTE.format(symbol=quote(ticker, safe="")))
 
 
 def favicon_url(domain: str | None) -> str | None:

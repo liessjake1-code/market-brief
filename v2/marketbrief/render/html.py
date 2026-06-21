@@ -1,15 +1,19 @@
 from __future__ import annotations
 from pathlib import Path
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from marketbrief.core.models import BriefView
 
 _TEMPLATE_PATH = Path(__file__).parent / "template.html.j2"
 
+_ENV = Environment(
+    loader=FileSystemLoader(str(_TEMPLATE_PATH.parent)),
+    autoescape=select_autoescape(["html", "j2", "html.j2"]),
+)
+
 
 def render_brief(view: BriefView) -> str:
-    """Render the full brief HTML from a BriefView. Logic-free: loops + conditionals only."""
-    template = Template(_TEMPLATE_PATH.read_text())
-    return template.render(view=view)
+    """Render the full brief HTML from a BriefView. Autoescaped (XSS-safe); logic-free."""
+    return _ENV.get_template("template.html.j2").render(view=view)
 
 
 def render_unavailable_notice() -> str:

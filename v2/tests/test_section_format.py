@@ -1,6 +1,6 @@
 from marketbrief.core.enums import Direction
 from marketbrief.core.models import Field
-from marketbrief.render.source_links import source_url, favicon_url, yahoo_ticker_url
+from marketbrief.render.source_links import source_url, favicon_url, yahoo_ticker_url, safe_url
 from marketbrief.sections._format import (
     figure_cell, direction_of, quiet_lead, METRIC_LABELS, QUIET_LINES,
 )
@@ -39,6 +39,28 @@ def test_figure_cell_stale_flag_propagates():
     assert cell.stale is True
     assert cell.metric_label == "S&P"
     assert "finance.yahoo.com" in cell.source_url
+
+
+def test_safe_url_rejects_javascript_scheme():
+    assert safe_url("javascript:alert(1)") is None
+
+
+def test_safe_url_rejects_data_scheme():
+    assert safe_url("data:text/html,<h1>xss</h1>") is None
+
+
+def test_safe_url_accepts_https():
+    url = "https://finance.yahoo.com/quote/%5EGSPC"
+    assert safe_url(url) == url
+
+
+def test_safe_url_accepts_http():
+    url = "http://example.com"
+    assert safe_url(url) == url
+
+
+def test_safe_url_handles_none():
+    assert safe_url(None) is None
 
 
 def test_quiet_lead_is_hedged_and_sourceless():

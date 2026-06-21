@@ -22,7 +22,10 @@ def _view(degraded=False, banner=None, live=None):
 
 def test_render_contains_section_and_diff():
     html = render_brief(_view())
-    assert "US Equities" in html and "S&P +0.4%" in html
+    # With autoescape ON, "&" in "S&P" is encoded as "&amp;" — the correct secure form.
+    assert "US Equities" in html
+    assert "S&amp;P" in html  # autoescape encodes & to &amp;
+    assert "+0.4%" in html
     assert "5,000" in html and "finance.yahoo.com" in html
 
 
@@ -40,6 +43,32 @@ def test_live_block_is_fenced_and_labeled():
     live = LiveSnapshot(as_of_label="Pre-market as of 08:25 CT", rows=[], is_premarket=True)
     html = render_brief(_view(live=live))
     assert "Pre-market as of 08:25 CT" in html
+
+
+def test_xss_script_tag_in_section_lead_is_escaped():
+    """Autoescape must neutralize script injection in model-generated prose (HIGH/XSS)."""
+    payload = "<script>alert(1)</script>"
+    sec = SectionVM(
+        id="us_equities", title="US Equities", order=1, quiet=False,
+        lead=WhyLine(text=payload, hedged=False),
+        stat_rows=[],
+    )
+    view = BriefView(
+        diff_line="", glance_rows=[], sections=[sec], live=None,
+        degraded=False, banner_text=None,
+    )
+    html = render_brief(view)
+    assert payload not in html, "Raw script tag must not appear unescaped in output"
+    assert "&lt;script&gt;" in html, "Escaped form must be present"
+
+
+def test_javascript_uri_source_url_is_blocked():
+    """safe_url must prevent javascript: URIs from reaching rendered href (HIGH/open-redirect)."""
+    from marketbrief.render.source_links import safe_url
+    assert safe_url("javascript:alert(1)") is None
+    assert safe_url("data:text/html,<h1>x</h1>") is None
+    assert safe_url("https://finance.yahoo.com/quote/%5EGSPC") == "https://finance.yahoo.com/quote/%5EGSPC"
+    assert safe_url(None) is None
 
 
 def test_mime_has_cid_image_part():
