@@ -32,6 +32,10 @@ def source_url(metric: str) -> str | None:
         return None
     if sym.fred and _is_yield_metric(metric):
         return FRED_SERIES.format(series=sym.fred)
+    if sym.yf is None and sym.fred:
+        return FRED_SERIES.format(series=sym.fred)
+    if sym.yf is None:
+        return None
     return YAHOO_QUOTE.format(symbol=quote(sym.yf, safe=""))
 
 
