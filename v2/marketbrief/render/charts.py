@@ -10,8 +10,9 @@ the bytes to the email via render/send.py.
 Pure: takes already-computed numbers and history lists, does no network and no
 state access. matplotlib runs on the headless Agg backend.
 
-§6.5 palette: PAPER background, GOLD (#B0892F) as the single chart accent,
-GREEN/RED for direction only (bars, WTI fill), INK for axis text, GREY for captions.
+§6.5 palette (dark terminal): near-black PAPER background, AMBER (#E8A33D) as the
+single chart accent, GREEN/RED for direction only (bars, WTI fill), TEXT off-white
+for axis emphasis, MUTED grey for captions and ticks.
 """
 
 from __future__ import annotations
@@ -25,17 +26,20 @@ import matplotlib
 matplotlib.use("Agg")  # headless: no display, deterministic PNG bytes
 import matplotlib.pyplot as plt  # noqa: E402
 
-# §6.5 palette. GOLD is the single chart accent (replaces v1's BLUE "#3a6ea5").
-# GREEN/RED carry direction only (bar up/down, WTI fill).
-# Copper leg in commodities_normalized keeps "#b06a3a" — that chart is deferred
-# and the earthy tone stays distinct from GOLD without adding a new palette entry.
-INK = "#13202E"
-PAPER = "#FBFAF7"
-HAIRLINE = "#E4E0D7"
-GOLD = "#B0892F"
-GREEN = "#197A4B"
-RED = "#BC3B2E"
-GREY = "#6B7785"
+# §6.5 dark-terminal palette. GOLD (now amber) is the single chart accent.
+# GREEN/RED carry direction only (bar up/down, WTI fill). Constant NAMES are kept
+# stable (INK/PAPER/GOLD/...) so every reference below remaps by value alone; their
+# ROLES now read against a near-black panel: INK is the off-white emphasis text,
+# PAPER the near-black background, GREY the muted tick/caption grey.
+# Copper leg in commodities_normalized gets a warm tone that stays distinct from
+# amber on the dark panel without adding a new palette entry.
+INK = "#E6E3DA"        # off-white emphasis (titles, end-value labels)
+PAPER = "#0B0E14"      # near-black chart background
+HAIRLINE = "#232A36"   # hairline spines / gridlines
+GOLD = "#E8A33D"       # amber accent (single brand accent: lines, fills)
+GREEN = "#4FB477"      # up direction only
+RED = "#E5594F"        # down direction only
+GREY = "#7A828F"       # muted ticks, captions, subtitles
 
 FIG_DPI = 110
 _CHART_FONT = {"family": "monospace"}
@@ -217,7 +221,7 @@ def ten_year_trend(
     fig, ax = _new_axes(5.4, 2.7)
     ax.plot(range(n), series, color=GOLD, linewidth=2.0)
     ax.fill_between(range(n), series, min(series) - (max(series) - min(series) or 0.01),
-                    color=GOLD, alpha=0.06)
+                    color=GOLD, alpha=0.10)
     span = _date_xaxis(ax, win_dates, n)
     _titled(ax, "10-year Treasury yield, past month",
             "Daily close" + (f"  ·  {span}" if span else ""))
@@ -235,14 +239,14 @@ def ten_year_trend(
 
 
 # The three commodity legs of the normalized chart: key -> (display label, color).
-# WTI uses GOLD (the single §6.5 accent); gold and copper get distinct earthy tones
-# so three lines stay legible. "#B0892F" == GOLD; copper "#b06a3a" is kept as a
-# commodity-only exception (this chart requires rolling history — deferred to a
+# WTI uses GOLD/amber (the single §6.5 accent); gold and copper get distinct warm
+# tones that read on the dark panel so three lines stay legible. Copper "#C77B4A"
+# is a commodity-only exception (this chart requires rolling history — deferred to a
 # future sub-project — so it does not appear in #4 output, but the code stays intact).
 _COMMODITY_LEGS: tuple[tuple[str, str, str], ...] = (
-    ("wti", "WTI crude", GOLD),
-    ("gold", "Gold", "#B0892F"),
-    ("copper", "Copper", "#b06a3a"),
+    ("wti", "WTI crude", GOLD),       # amber, the primary accent
+    ("gold", "Gold", "#E8D44D"),      # brighter yellow, distinct from amber on dark
+    ("copper", "Copper", "#C77B4A"),  # warm copper, distinct from both
 )
 
 
@@ -298,8 +302,11 @@ def commodities_normalized(
     ax.set_ylabel("Index (start = 100)", color=GREY, fontsize=8, **_CHART_FONT)
     # Legend BELOW the plot so it never overlaps the rebased lines (which sit near
     # the 100 baseline early on, right where an upper-left legend would land).
+    # labelcolor=INK is load-bearing on the dark panel: with frameon=False the
+    # near-black PAPER shows through, so the default black label text would be
+    # invisible. INK is the off-white emphasis color.
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=len(drawn),
-              fontsize=7, frameon=False, prop={"family": "monospace"})
+              fontsize=7, frameon=False, prop={"family": "monospace"}, labelcolor=INK)
     fig.tight_layout()
 
     bits = [f"{label} {rebased[-1] - 100.0:+.1f}%" for label, rebased in drawn]

@@ -95,6 +95,36 @@ class MoverRow(BaseModel):
     source_url: str | None = None
 
 
+class MoverPeriod(BaseModel):
+    """Top winners and losers over one trailing window (day / week / month).
+
+    `label` is the human window name shown in the template ("Day"). `winners` and
+    `losers` are already ranked and sliced (top N) by the assemble layer; the
+    template only iterates. Either list may be empty when data is thin.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    label: str
+    winners: list[MoverRow] = PField(default_factory=list)
+    losers: list[MoverRow] = PField(default_factory=list)
+
+
+class MoverBoard(BaseModel):
+    """The Movers board: top winners/losers across day, week, and month windows.
+
+    Defaults empty so a quiet movers section (per-stock universe deferred, spec §7)
+    carries no board. The template renders a period block only when it has rows, so
+    an empty board renders nothing — no fabricated names.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    periods: list[MoverPeriod] = PField(default_factory=list)
+
+    @property
+    def has_rows(self) -> bool:
+        return any(p.winners or p.losers for p in self.periods)
+
+
 class SparkRef(BaseModel):
     model_config = ConfigDict(frozen=True)
     ticker: str
@@ -119,6 +149,7 @@ class SectionVM(BaseModel):
     why_lines: list[WhyLine] = PField(default_factory=list)
     charts: list[ChartRef] = PField(default_factory=list)
     movers: list[MoverRow] = PField(default_factory=list)
+    mover_board: MoverBoard | None = None
     sparklines: list[SparkRef] = PField(default_factory=list)
     is_promoted: bool = False
 

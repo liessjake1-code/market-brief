@@ -2,6 +2,7 @@ from email.message import EmailMessage
 from marketbrief.core.enums import Direction
 from marketbrief.core.models import (
     BriefView, SectionVM, WhyLine, StatRow, FigureCell, GlanceRow, LiveSnapshot,
+    MoverRow, MoverPeriod, MoverBoard,
 )
 from marketbrief.render.html import render_brief
 from marketbrief.render.mime import build_message
@@ -69,6 +70,48 @@ def test_javascript_uri_source_url_is_blocked():
     assert safe_url("data:text/html,<h1>x</h1>") is None
     assert safe_url("https://finance.yahoo.com/quote/%5EGSPC") == "https://finance.yahoo.com/quote/%5EGSPC"
     assert safe_url(None) is None
+
+
+def _movers_view(board):
+    sec = SectionVM(id="movers", title="Movers", order=5, quiet=False,
+                    lead=WhyLine(text="Top winners and losers.", hedged=False),
+                    mover_board=board)
+    return BriefView(diff_line="", glance_rows=[], sections=[sec], live=None,
+                     degraded=False, banner_text=None)
+
+
+def test_populated_mover_board_renders_winners_and_losers():
+    board = MoverBoard(periods=[MoverPeriod(
+        label="Day",
+        winners=[MoverRow(ticker="NVDA", favicon_url=None, value_str="+4.8%",
+                          direction=Direction.UP, why="")],
+        losers=[MoverRow(ticker="PFE", favicon_url=None, value_str="-3.4%",
+                         direction=Direction.DOWN, why="")])])
+    html = render_brief(_movers_view(board))
+    assert "Day Winners" in html and "Day Losers" in html
+    assert "NVDA" in html and "+4.8%" in html
+    assert "PFE" in html and "-3.4%" in html
+
+
+def test_empty_mover_board_renders_nothing_no_fabrication():
+    """Spec §1: an empty board must produce no winners/losers UI and no names."""
+    board = MoverBoard(periods=[MoverPeriod(label="Day"), MoverPeriod(label="Week")])
+    html = render_brief(_movers_view(board))
+    assert "Winners" not in html and "Losers" not in html
+
+
+def test_none_mover_board_renders_nothing():
+    html = render_brief(_movers_view(None))
+    assert "Winners" not in html and "Losers" not in html
+
+
+def test_dark_palette_present_in_output():
+    """Regression guard: the dark-terminal palette must reach the rendered HTML."""
+    html = render_brief(_view())
+    assert "#0B0E14" in html  # near-black page background
+    assert "#E8A33D" in html  # amber accent
+    # Old cream/gold palette must be fully retired.
+    assert "#FBFAF7" not in html and "#B0892F" not in html
 
 
 def test_mime_has_cid_image_part():
