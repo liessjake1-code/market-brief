@@ -15,10 +15,22 @@ class NarrateConfig(BaseModel):
     max_tokens: int = 1500
 
 
+class ChartsConfig(BaseModel):
+    equities: bool = True       # default on (spec §6)
+    rates: bool = True          # default on
+    commodities: bool = True    # default on
+    vix: bool = False
+    movers: bool = False
+    crypto: bool = False
+    scorecard: bool = False
+    sparklines: bool = False    # auto-on once watchlist populated (handled in render)
+
+
 class Config(BaseModel):
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     watchlist: list[str] = Field(default_factory=list)
     narrate: NarrateConfig = Field(default_factory=NarrateConfig)
+    charts: ChartsConfig = Field(default_factory=ChartsConfig)
 
 
 def load_config(path: str | Path) -> Config:
