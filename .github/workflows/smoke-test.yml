@@ -1,15 +1,18 @@
 name: Smoke Test (build without send)
 
-# Manual build-without-send check (spec §8.3; roadmap §1.6). Runs the full build
-# in --no-send mode so a build can be validated on the runner without emailing
-# anything and without writing state. No secrets, no schedule: workflow_dispatch
-# only.
+# Manual build-without-send check (spec §8.3; roadmap §1.6). Runs the full v2
+# build in --no-send mode (offline, deterministic) so a build can be validated on
+# the runner without emailing anything and without writing state, then runs the
+# v2 test suite. No secrets, no schedule: workflow_dispatch only.
 on:
   workflow_dispatch: {}
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
