@@ -21,6 +21,7 @@ from marketbrief.assemble.glance import build_glance_rows
 from marketbrief.assemble.topstory import order_sections
 from marketbrief.assemble.fence import build_live_snapshot
 from marketbrief.assemble.brief_view import build_brief_view
+from marketbrief.render.chart_set import build_charts
 
 
 def _fetch(ctx: BriefContext, sources: list) -> BriefContext:
@@ -89,8 +90,14 @@ def _assemble(ctx: BriefContext, sections: list) -> BriefContext:
     diff = build_diff_line(ctx)
     # Live snapshot uses the run's wall-clock pull time; rows empty until futures wired.
     live = build_live_snapshot(datetime.now(), rows=[])
-    view = build_brief_view(ctx, ordered, glance, diff, live)
-    return ctx.with_updates(sections=ordered, brief_view=view)
+    png_by_cid, chartrefs_by_section_id = build_charts(ctx)
+    enriched = [
+        sec.model_copy(update={"charts": chartrefs_by_section_id.get(sec.id, [])})
+        for sec in ordered
+    ]
+    view = build_brief_view(ctx, enriched, glance, diff, live)
+    view = view.model_copy(update={"png_by_cid": png_by_cid})
+    return ctx.with_updates(sections=enriched, brief_view=view)
 
 
 def run_pipeline(ctx: BriefContext, *, sources: list | None = None,

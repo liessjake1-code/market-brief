@@ -131,6 +131,8 @@ class BriefView(BaseModel):
     live: LiveSnapshot | None = None
     degraded: bool = False
     banner_text: str | None = None
+    date_label: str = ""
+    png_by_cid: dict[str, bytes] = PField(default_factory=dict)
 
 
 class HealthReport(BaseModel):

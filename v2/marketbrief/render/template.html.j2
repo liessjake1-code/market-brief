@@ -23,10 +23,6 @@
    All business logic lives in Python; this template only presents.
 #}
 
-{%- macro figure_color(direction) -%}
-  {%- if direction == 'up' or direction == Direction.UP -%}#197A4B{%- elif direction == 'down' or direction == Direction.DOWN -%}#BC3B2E{%- else -%}#13202E{%- endif -%}
-{%- endmacro -%}
-
 <html>
   <body style="margin:0;padding:0;background:#FBFAF7;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBFAF7;">
@@ -98,6 +94,22 @@
             {% for wl in s.why_lines %}
             <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B7785;margin:4px 0 0 0;line-height:1.5;font-style:italic;">{{ wl.text }}</p>
             {% endfor %}
+            {% if s.movers | length > 0 %}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-collapse:collapse;">
+              {% for m in s.movers %}
+              <tr style="border-bottom:1px solid #E4E0D7;">
+                <td style="padding:6px 8px 6px 0;vertical-align:middle;width:28px;">
+                  {% if m.favicon_url %}<img src="{{ m.favicon_url }}" width="14" height="14" alt="" style="display:block;border:0;vertical-align:middle;">{% endif %}
+                </td>
+                <td style="padding:6px 8px 6px 0;vertical-align:middle;font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;font-weight:700;white-space:nowrap;">
+                  <a href="{{ m.source_url }}" style="color:#13202E;text-decoration:none;">{{ m.ticker }}</a>
+                </td>
+                <td style="padding:6px 8px 6px 0;vertical-align:middle;font-family:Consolas,'SFMono-Regular',monospace;font-size:12px;color:{% if m.direction.value == 'up' or m.direction == 'up' %}#197A4B{% elif m.direction.value == 'down' or m.direction == 'down' %}#BC3B2E{% else %}#13202E{% endif %};white-space:nowrap;">{{ m.value_str }}</td>
+                <td style="padding:6px 0;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6B7785;">{{ m.why }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+            {% endif %}
           </td></tr>
           {% endfor %}
 
@@ -113,14 +125,6 @@
             </div>
           </td></tr>
           {% endif %}
-
-          {# ================================================================
-             WHAT TO WATCH (forward-looking events)
-          ================================================================ #}
-          <tr><td style="padding:22px 32px 0 32px;">
-            <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B7785;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding-bottom:8px;border-bottom:1px solid #13202E;">What to Watch</div>
-            <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B7785;margin:10px 0 0 0;">No scheduled events flagged for today.</p>
-          </td></tr>
 
           {# ================================================================
              FOOTER
