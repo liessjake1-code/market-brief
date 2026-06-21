@@ -1,6 +1,6 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field as PField
-from marketbrief.core.enums import SourceHealth, Verdict
+from pydantic import BaseModel, ConfigDict, Field as PField
+from marketbrief.core.enums import SourceHealth, Verdict, Direction, ChartKind
 
 
 class Field(BaseModel):
@@ -45,12 +45,92 @@ class NarratedWhy(BaseModel):
     degraded: bool = False
 
 
+class FigureCell(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    metric_label: str
+    value_str: str
+    change_str: str
+    direction: Direction
+    source_url: str | None = None
+    stale: bool = False
+    mechanical: bool = False
+
+
+class StatRow(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    label: str
+    cells: list[FigureCell] = PField(default_factory=list)
+
+
+class WhyLine(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    text: str
+    source_url: str | None = None
+    source_label: str | None = None
+    hedged: bool = False
+
+
+class ChartRef(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cid: str
+    alt: str
+    kind: ChartKind
+
+
+class GlanceRow(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    category: str
+    latest: str
+    why_brief: str
+    is_live: bool = False
+
+
+class MoverRow(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    ticker: str
+    favicon_url: str | None
+    value_str: str
+    direction: Direction
+    why: str
+    source_url: str | None = None
+
+
+class SparkRef(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    ticker: str
+    cid: str
+
+
+class LiveSnapshot(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    as_of_label: str
+    rows: list[FigureCell] = PField(default_factory=list)
+    is_premarket: bool = True
+
+
 class SectionVM(BaseModel):
+    model_config = ConfigDict(frozen=True)
     id: str
     title: str
     order: int
-    body: str
     quiet: bool = False
+    lead: WhyLine
+    stat_rows: list[StatRow] = PField(default_factory=list)
+    why_lines: list[WhyLine] = PField(default_factory=list)
+    charts: list[ChartRef] = PField(default_factory=list)
+    movers: list[MoverRow] = PField(default_factory=list)
+    sparklines: list[SparkRef] = PField(default_factory=list)
+    is_promoted: bool = False
+
+
+class BriefView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    diff_line: str
+    glance_rows: list[GlanceRow] = PField(default_factory=list)
+    sections: list[SectionVM] = PField(default_factory=list)
+    live: LiveSnapshot | None = None
+    degraded: bool = False
+    banner_text: str | None = None
 
 
 class HealthReport(BaseModel):

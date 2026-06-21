@@ -18,3 +18,16 @@ class Verdict(str, Enum):
     PASS = "pass"
     HEDGE = "hedge"
     STRIP = "strip"
+
+
+class Direction(str, Enum):
+    UP = "up"
+    DOWN = "down"
+    FLAT = "flat"
+
+
+class ChartKind(str, Enum):
+    BAR = "bar"
+    LINE = "line"
+    CURVE = "curve"
+    SPARK = "spark"
